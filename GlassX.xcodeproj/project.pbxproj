@@ -1,0 +1,411 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 77;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		010665597FF7AC63D044D11F /* XClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6B144925C2C72C10E34C59F2 /* XClient.swift */; };
+		2366D3216F116DF3DD011E7F /* ComposeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8686676AC26B86EDB91FF08C /* ComposeView.swift */; };
+		44EF7A9C0C4C70A86CED146A /* LoginWebView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D0300424FFC980B95632DFF8 /* LoginWebView.swift */; };
+		46BD1184AD8378E633BC322D /* TweetText.swift in Sources */ = {isa = PBXBuildFile; fileRef = 96D6513A6ECDB1A5739CA854 /* TweetText.swift */; };
+		48EE4CF037D6AA31738DB597 /* MediaViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8BA5B9EA48F5762361EBC3BF /* MediaViews.swift */; };
+		4C6AD6F03497A637D109BCF6 /* TweetRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 559FDD353813F70BEADF8278 /* TweetRow.swift */; };
+		601FCC9307E3610D8FDC1469 /* AppModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = ED607A30EC4516AB5F463EFA /* AppModel.swift */; };
+		6ED9055E7514B6E9ECE220A9 /* FeedView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0AB3832878F6655570FFBDB2 /* FeedView.swift */; };
+		883DF0A4E831A20CC44FC50C /* Keychain.swift in Sources */ = {isa = PBXBuildFile; fileRef = B3229A449B4EA69C352EF8F3 /* Keychain.swift */; };
+		A9D7723C8F1445AA19C257E7 /* Models.swift in Sources */ = {isa = PBXBuildFile; fileRef = 602E589E3B665DBA533988B3 /* Models.swift */; };
+		AC63D9BC3838531F6AA9B57D /* RootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C472A7366ED523F97FEFE995 /* RootView.swift */; };
+		C248ACC024B6248F2B4B695A /* TimelineParser.swift in Sources */ = {isa = PBXBuildFile; fileRef = A005263E62798D83BB5F0FED /* TimelineParser.swift */; };
+		CD136B7A9781201916A1D662 /* GlassXApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6A2CD8B19049DA5CDAAAB377 /* GlassXApp.swift */; };
+		D21E37E2DF4F6FEE2B4A9CB9 /* LoginView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 76AB7076709AE211531A09FC /* LoginView.swift */; };
+		E617D3A93D083C1B2434C9D3 /* TransactionID.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0E5DE8F1A0E6CA894FB29760 /* TransactionID.swift */; };
+		E8F5C16A53BEF1D318368AFD /* Components.swift in Sources */ = {isa = PBXBuildFile; fileRef = 432358400CFF1BC61FB251D8 /* Components.swift */; };
+		F0D300F81F8BC49F0AD4793A /* Screens.swift in Sources */ = {isa = PBXBuildFile; fileRef = D16422762A6E9213378A7AEA /* Screens.swift */; };
+		FAE506F297EAB5B8C343C99C /* JSONValue.swift in Sources */ = {isa = PBXBuildFile; fileRef = AFC8FEF43849C6D70F320C14 /* JSONValue.swift */; };
+		FF1DD9DAAC4216AA56DC4F32 /* WebClientCatalog.swift in Sources */ = {isa = PBXBuildFile; fileRef = 26082D5C18CA188E73531971 /* WebClientCatalog.swift */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXFileReference section */
+		0AB3832878F6655570FFBDB2 /* FeedView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FeedView.swift; sourceTree = "<group>"; };
+		0E5DE8F1A0E6CA894FB29760 /* TransactionID.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TransactionID.swift; sourceTree = "<group>"; };
+		26082D5C18CA188E73531971 /* WebClientCatalog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WebClientCatalog.swift; sourceTree = "<group>"; };
+		432358400CFF1BC61FB251D8 /* Components.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Components.swift; sourceTree = "<group>"; };
+		559FDD353813F70BEADF8278 /* TweetRow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TweetRow.swift; sourceTree = "<group>"; };
+		602E589E3B665DBA533988B3 /* Models.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Models.swift; sourceTree = "<group>"; };
+		6551CD7BE50D315542A114A4 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
+		6A2CD8B19049DA5CDAAAB377 /* GlassXApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlassXApp.swift; sourceTree = "<group>"; };
+		6B144925C2C72C10E34C59F2 /* XClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = XClient.swift; sourceTree = "<group>"; };
+		76AB7076709AE211531A09FC /* LoginView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LoginView.swift; sourceTree = "<group>"; };
+		8686676AC26B86EDB91FF08C /* ComposeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ComposeView.swift; sourceTree = "<group>"; };
+		8BA5B9EA48F5762361EBC3BF /* MediaViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MediaViews.swift; sourceTree = "<group>"; };
+		938FE9312D2DACE93E9A589D /* GlassX.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = GlassX.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		96D6513A6ECDB1A5739CA854 /* TweetText.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TweetText.swift; sourceTree = "<group>"; };
+		9D578EC157EA6F0E6CD5ECEC /* GlassX.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = GlassX.entitlements; sourceTree = "<group>"; };
+		A005263E62798D83BB5F0FED /* TimelineParser.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TimelineParser.swift; sourceTree = "<group>"; };
+		AFC8FEF43849C6D70F320C14 /* JSONValue.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JSONValue.swift; sourceTree = "<group>"; };
+		B3229A449B4EA69C352EF8F3 /* Keychain.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Keychain.swift; sourceTree = "<group>"; };
+		C472A7366ED523F97FEFE995 /* RootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootView.swift; sourceTree = "<group>"; };
+		D0300424FFC980B95632DFF8 /* LoginWebView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LoginWebView.swift; sourceTree = "<group>"; };
+		D16422762A6E9213378A7AEA /* Screens.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Screens.swift; sourceTree = "<group>"; };
+		ED607A30EC4516AB5F463EFA /* AppModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppModel.swift; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXGroup section */
+		152E4B29ADBE8A237D8AE572 /* API */ = {
+			isa = PBXGroup;
+			children = (
+				AFC8FEF43849C6D70F320C14 /* JSONValue.swift */,
+				A005263E62798D83BB5F0FED /* TimelineParser.swift */,
+				0E5DE8F1A0E6CA894FB29760 /* TransactionID.swift */,
+				26082D5C18CA188E73531971 /* WebClientCatalog.swift */,
+				6B144925C2C72C10E34C59F2 /* XClient.swift */,
+			);
+			path = API;
+			sourceTree = "<group>";
+		};
+		2F4E025412F4F179EDB7F6B7 = {
+			isa = PBXGroup;
+			children = (
+				54C0628BF8D53FD3268A3810 /* GlassX */,
+				520F5EC40A4D24DB49058AE8 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		460A69FDA4C4343C7A1E523E /* Views */ = {
+			isa = PBXGroup;
+			children = (
+				432358400CFF1BC61FB251D8 /* Components.swift */,
+				8686676AC26B86EDB91FF08C /* ComposeView.swift */,
+				0AB3832878F6655570FFBDB2 /* FeedView.swift */,
+				76AB7076709AE211531A09FC /* LoginView.swift */,
+				8BA5B9EA48F5762361EBC3BF /* MediaViews.swift */,
+				C472A7366ED523F97FEFE995 /* RootView.swift */,
+				D16422762A6E9213378A7AEA /* Screens.swift */,
+				559FDD353813F70BEADF8278 /* TweetRow.swift */,
+				96D6513A6ECDB1A5739CA854 /* TweetText.swift */,
+			);
+			path = Views;
+			sourceTree = "<group>";
+		};
+		484B5AAF842F375A979DC5DB /* Models */ = {
+			isa = PBXGroup;
+			children = (
+				602E589E3B665DBA533988B3 /* Models.swift */,
+			);
+			path = Models;
+			sourceTree = "<group>";
+		};
+		520F5EC40A4D24DB49058AE8 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				938FE9312D2DACE93E9A589D /* GlassX.app */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		54C0628BF8D53FD3268A3810 /* GlassX */ = {
+			isa = PBXGroup;
+			children = (
+				9D578EC157EA6F0E6CD5ECEC /* GlassX.entitlements */,
+				6551CD7BE50D315542A114A4 /* Info.plist */,
+				152E4B29ADBE8A237D8AE572 /* API */,
+				6FE11C6C0809F1AA8D60AC6C /* App */,
+				E47C25A80BC30530F609A907 /* Auth */,
+				484B5AAF842F375A979DC5DB /* Models */,
+				460A69FDA4C4343C7A1E523E /* Views */,
+			);
+			path = GlassX;
+			sourceTree = "<group>";
+		};
+		6FE11C6C0809F1AA8D60AC6C /* App */ = {
+			isa = PBXGroup;
+			children = (
+				ED607A30EC4516AB5F463EFA /* AppModel.swift */,
+				6A2CD8B19049DA5CDAAAB377 /* GlassXApp.swift */,
+			);
+			path = App;
+			sourceTree = "<group>";
+		};
+		E47C25A80BC30530F609A907 /* Auth */ = {
+			isa = PBXGroup;
+			children = (
+				B3229A449B4EA69C352EF8F3 /* Keychain.swift */,
+				D0300424FFC980B95632DFF8 /* LoginWebView.swift */,
+			);
+			path = Auth;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		C9D0A5854E5017184B614702 /* GlassX */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = A1A8B761D6BBAA45A4C21DA3 /* Build configuration list for PBXNativeTarget "GlassX" */;
+			buildPhases = (
+				A15C77315840B9EB35073AC3 /* Sources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = GlassX;
+			packageProductDependencies = (
+			);
+			productName = GlassX;
+			productReference = 938FE9312D2DACE93E9A589D /* GlassX.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		CE76ADF2990042D286F10178 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = YES;
+				LastUpgradeCheck = 1430;
+				TargetAttributes = {
+					C9D0A5854E5017184B614702 = {
+						ProvisioningStyle = Manual;
+					};
+				};
+			};
+			buildConfigurationList = 8F2B669BB9823B6D4349212B /* Build configuration list for PBXProject "GlassX" */;
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				Base,
+				en,
+			);
+			mainGroup = 2F4E025412F4F179EDB7F6B7;
+			minimizedProjectReferenceProxies = 1;
+			preferredProjectObjectVersion = 77;
+			productRefGroup = 520F5EC40A4D24DB49058AE8 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				C9D0A5854E5017184B614702 /* GlassX */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXSourcesBuildPhase section */
+		A15C77315840B9EB35073AC3 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				601FCC9307E3610D8FDC1469 /* AppModel.swift in Sources */,
+				E8F5C16A53BEF1D318368AFD /* Components.swift in Sources */,
+				2366D3216F116DF3DD011E7F /* ComposeView.swift in Sources */,
+				6ED9055E7514B6E9ECE220A9 /* FeedView.swift in Sources */,
+				CD136B7A9781201916A1D662 /* GlassXApp.swift in Sources */,
+				FAE506F297EAB5B8C343C99C /* JSONValue.swift in Sources */,
+				883DF0A4E831A20CC44FC50C /* Keychain.swift in Sources */,
+				D21E37E2DF4F6FEE2B4A9CB9 /* LoginView.swift in Sources */,
+				44EF7A9C0C4C70A86CED146A /* LoginWebView.swift in Sources */,
+				48EE4CF037D6AA31738DB597 /* MediaViews.swift in Sources */,
+				A9D7723C8F1445AA19C257E7 /* Models.swift in Sources */,
+				AC63D9BC3838531F6AA9B57D /* RootView.swift in Sources */,
+				F0D300F81F8BC49F0AD4793A /* Screens.swift in Sources */,
+				C248ACC024B6248F2B4B695A /* TimelineParser.swift in Sources */,
+				E617D3A93D083C1B2434C9D3 /* TransactionID.swift in Sources */,
+				4C6AD6F03497A637D109BCF6 /* TweetRow.swift in Sources */,
+				46BD1184AD8378E633BC322D /* TweetText.swift in Sources */,
+				FF1DD9DAAC4216AA56DC4F32 /* WebClientCatalog.swift in Sources */,
+				010665597FF7AC63D044D11F /* XClient.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin XCBuildConfiguration section */
+		096B98C902237E7AA2B52117 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = GlassX/GlassX.entitlements;
+				CODE_SIGN_IDENTITY = 19AE73C094F20EE9C3DE11B9E2CE129D5D197C32;
+				CODE_SIGN_STYLE = Manual;
+				COMBINE_HIDPI_IMAGES = YES;
+				ENABLE_HARDENED_RUNTIME = YES;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = GlassX/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.ryanvogel.glassx;
+				PRODUCT_NAME = GlassX;
+				SDKROOT = macosx;
+			};
+			name = Release;
+		};
+		5C007E7E49B0580F1A40108C /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = GlassX/GlassX.entitlements;
+				CODE_SIGN_IDENTITY = 19AE73C094F20EE9C3DE11B9E2CE129D5D197C32;
+				CODE_SIGN_STYLE = Manual;
+				COMBINE_HIDPI_IMAGES = YES;
+				ENABLE_HARDENED_RUNTIME = YES;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = GlassX/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.ryanvogel.glassx;
+				PRODUCT_NAME = GlassX;
+				SDKROOT = macosx;
+			};
+			name = Debug;
+		};
+		AE4E9D42CE97A55FFD7CBC11 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"$(inherited)",
+					"DEBUG=1",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 27.0;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = macosx;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 5.0;
+			};
+			name = Debug;
+		};
+		B9BE3560E9C0C472C2058726 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 27.0;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = macosx;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				SWIFT_VERSION = 5.0;
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		8F2B669BB9823B6D4349212B /* Build configuration list for PBXProject "GlassX" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				AE4E9D42CE97A55FFD7CBC11 /* Debug */,
+				B9BE3560E9C0C472C2058726 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		A1A8B761D6BBAA45A4C21DA3 /* Build configuration list for PBXNativeTarget "GlassX" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				5C007E7E49B0580F1A40108C /* Debug */,
+				096B98C902237E7AA2B52117 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = CE76ADF2990042D286F10178 /* Project object */;
+}
