@@ -30,8 +30,6 @@ struct ComposerOverlay: View {
     @State private var dockVisible = true
     @State private var pillVisible = false
     @State private var dockHeight: CGFloat = 120
-    @State private var pillWidth: CGFloat = 160
-    @State private var checkPulse = 0
     // Exit
     @State private var dropAway = false
     @State private var flight: CGSize = .zero
@@ -64,7 +62,9 @@ struct ComposerOverlay: View {
                     .scaleEffect(flightScale)
                     .offset(flight)
                     .opacity(flightOpacity)
-                    .offset(y: dropAway ? 28 : 0)
+                    .scaleEffect(dropAway ? 0.92 : 1, anchor: .bottom)
+                    .offset(y: dropAway ? 18 : 0)
+                    .blur(radius: dropAway ? 4 : 0)
                     .opacity(dropAway ? 0 : 1)
                     .scaleEffect(shown ? 1 : (exiting ? 0.96 : 0.94), anchor: .bottom)
                     .offset(y: shown ? 0 : (exiting ? 26 : 40))
@@ -125,7 +125,6 @@ struct ComposerOverlay: View {
 
             statusPill
                 .fixedSize()
-                .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { pillWidth = $0 }
                 .frame(width: collapsed ? collapsedWidth : width, height: collapsed ? 50 : dockHeight)
                 .opacity(pillVisible ? 1 : 0)
                 .scaleEffect(pillVisible ? 1 : 0.9)
@@ -146,7 +145,6 @@ struct ComposerOverlay: View {
         .animation(.smooth(duration: 0.22), value: editorHeight)
         .animation(.bouncy(duration: 0.35), value: attachments)
         .animation(.easeOut(duration: 0.15), value: isDropTargeted)
-        .animation(.smooth(duration: 0.35), value: pillWidth)
         .dropDestination(for: URL.self) { urls, _ in
             add(urls.compactMap { try? PostAttachment.load(from: $0) })
             return true
@@ -226,42 +224,48 @@ struct ComposerOverlay: View {
 
     private var statusPill: some View {
         HStack(spacing: 10) {
-            switch stage {
-            case .sent:
-                ZStack {
-                    Circle()
-                        .stroke(Color.xBlue, lineWidth: 2)
-                        .keyframeAnimator(initialValue: PulseValue(), trigger: checkPulse) { content, value in
-                            content.scaleEffect(value.scale).opacity(value.opacity)
-                        } keyframes: { _ in
-                            KeyframeTrack(\.scale) { LinearKeyframe(2.2, duration: 0.55, timingCurve: .easeOut) }
-                            KeyframeTrack(\.opacity) { LinearKeyframe(0.6, duration: 0.01); LinearKeyframe(0, duration: 0.55, timingCurve: .easeOut) }
-                        }
-                    Image(systemName: "checkmark.circle.fill")
-                        .font(.system(size: 18))
-                        .foregroundStyle(.white, Color.xBlue)
-                        .symbolEffect(.bounce, value: checkPulse)
-                }
+            StatusIcon(phase: iconPhase)
                 .frame(width: 20, height: 20)
-                .transition(.scale.combined(with: .opacity))
-                Text(target.replyTo == nil ? "Posted" : "Reply sent")
-            case .queued(let date):
-                ClockGlyph().frame(width: 18, height: 18)
-                    .transition(.scale.combined(with: .opacity))
-                if !orb { Text("Scheduled for \(date.formatted(date: Calendar.current.isDateInToday(date) ? .omitted : .abbreviated, time: .shortened))")
-                    .transition(.opacity.combined(with: .scale(scale: 0.9, anchor: .leading))) }
-            default:
-                ProgressRing(value: progress ?? -1, color: .xBlue).frame(width: 16, height: 16)
-                    .transition(.scale.combined(with: .opacity))
-                Text(progress.map { "Uploading \(Int($0 * 100))%" } ?? (willQueueLabel ? "Scheduling…" : (target.replyTo == nil ? "Posting…" : "Replying…")))
-                    .monospacedDigit()
+            if !orb {
+                ZStack(alignment: .leading) {
+                    Text(pillLabel)
+                        .id(pillLabel)
+                        .transition(.blurSlide)
+                }
+                .transition(.opacity)
             }
         }
         .font(.system(size: 14, weight: .semibold))
+        .monospacedDigit()
         .foregroundStyle(.white)
-        .contentTransition(.interpolate)
-        .padding(.horizontal, orb ? 16 : 18)
-        .frame(height: 50)
+        .padding(.horizontal, orb ? 15 : 18)
+        .frame(height: 50, alignment: .leading)
+    }
+
+    private var iconPhase: StatusIcon.Phase {
+        switch stage {
+        case .sent: .done
+        case .queued: .scheduled
+        default: .working(progress)
+        }
+    }
+
+    private var pillLabel: String {
+        switch stage {
+        case .sent: return target.replyTo == nil ? "Posted" : "Reply sent"
+        case .queued(let date):
+            return "Scheduled for \(date.formatted(date: Calendar.current.isDateInToday(date) ? .omitted : .abbreviated, time: .shortened))"
+        default:
+            if let progress { return "Uploading \(Int(progress * 100))%" }
+            return willQueueLabel ? "Scheduling…" : (target.replyTo == nil ? "Posting…" : "Replying…")
+        }
+    }
+
+    /// Computed from the text itself so the card resizes in the same animation as the label swap.
+    private var pillWidth: CGFloat {
+        let font = NSFont.monospacedDigitSystemFont(ofSize: 14, weight: .semibold)
+        let text = (pillLabel as NSString).size(withAttributes: [.font: font]).width
+        return ceil(text) + 18 * 2 + 20 + 10
     }
 
     @State private var willQueueLabel = false
@@ -371,7 +375,7 @@ struct ComposerOverlay: View {
     /// Card → pill: the card closes around its content while the content fades, then the pill
     /// label fades in once there's room for it.
     private func collapse() {
-        withAnimation(.smooth(duration: 0.5)) { collapsed = true }
+        withAnimation(.spring(duration: 0.55, bounce: 0.1)) { collapsed = true }
         // Content stays visible while the card crops it, then hands off to the pill label.
         withAnimation(.easeIn(duration: 0.32)) { dockVisible = false }
         withAnimation(.smooth(duration: 0.28).delay(0.2)) { pillVisible = true }
@@ -404,20 +408,19 @@ struct ComposerOverlay: View {
                     if hasMedia { withAnimation(.smooth) { progress = value } }
                 }
             }
-            // Let the collapse finish before the result swaps in.
+            // Keep "Posting…" on screen long enough to read before the result swaps in.
             let elapsed = Date.now.timeIntervalSince(started)
-            if elapsed < 0.6 { try? await Task.sleep(for: .seconds(0.6 - elapsed)) }
+            if elapsed < 1.0 { try? await Task.sleep(for: .seconds(1.0 - elapsed)) }
 
             switch outcome {
             case .sent:
-                withAnimation(.bouncy(duration: 0.4, extraBounce: 0.08)) { stage = .sent }
-                checkPulse += 1
-                try? await Task.sleep(for: .seconds(1.1))
-                withAnimation(.smooth(duration: 0.35)) { dropAway = true }
-                try? await Task.sleep(for: .seconds(0.36))
+                withAnimation(.spring(duration: 0.5, bounce: 0.18)) { stage = .sent }
+                try? await Task.sleep(for: .seconds(1.35))
+                withAnimation(.smooth(duration: 0.45)) { dropAway = true }
+                try? await Task.sleep(for: .seconds(0.46))
                 model.compose = nil
             case .queued(let date):
-                withAnimation(.bouncy(duration: 0.4, extraBounce: 0.06)) { stage = .queued(date) }
+                withAnimation(.spring(duration: 0.5, bounce: 0.18)) { stage = .queued(date) }
                 try? await Task.sleep(for: .seconds(1.15))
                 await flyIntoQueue()
                 model.compose = nil
@@ -434,7 +437,7 @@ struct ComposerOverlay: View {
 
     /// The pill folds into a clock circle, then hops into the toolbar queue button on a short arc.
     private func flyIntoQueue() async {
-        withAnimation(.smooth(duration: 0.32)) { orb = true }
+        withAnimation(.spring(duration: 0.4, bounce: 0.12)) { orb = true }
         try? await Task.sleep(for: .seconds(0.34))
         let target = model.queueButtonFrame
         let destination = target == .zero ? CGPoint(x: pillCenter.x + 400, y: 26) : CGPoint(x: target.minX + 14, y: target.midY)
@@ -464,26 +467,105 @@ struct ComposerOverlay: View {
 
 // MARK: - Pieces
 
-private struct PulseValue {
-    var scale: CGFloat = 1
-    var opacity: Double = 0
-}
+/// One icon that morphs through the whole send:
+/// spinning arc (or upload progress) → the arc closes into a full ring → it fills blue and a
+/// check draws itself in with a ripple; for a queued post the closed ring grows clock hands instead.
+struct StatusIcon: View {
+    enum Phase: Equatable { case working(Double?), done, scheduled }
+    var phase: Phase
 
-/// A small clock whose hands wind forward as it appears.
-private struct ClockGlyph: View {
-    @State private var wound = false
+    @State private var ringClosed = false
+    @State private var filled = false
+    @State private var checkDrawn: CGFloat = 0
+    @State private var handsIn = false
+    @State private var ripple = false
+
+    private var working: Bool { if case .working = phase { return true } else { return false } }
+    private var arcEnd: CGFloat {
+        if ringClosed { return 1 }
+        if case .working(let value?) = phase { return max(0.06, value) }
+        return 0.28
+    }
 
     var body: some View {
-        ZStack {
-            Circle().stroke(Color.xBlue, lineWidth: 1.8)
-            Capsule().fill(Color.xBlue).frame(width: 1.8, height: 6).offset(y: -3)
-                .rotationEffect(.degrees(wound ? 360 : 0))
-            Capsule().fill(Color.xBlue).frame(width: 1.8, height: 4.5).offset(y: -2.25)
-                .rotationEffect(.degrees(wound ? 120 : 0))
-            Circle().fill(Color.xBlue).frame(width: 3, height: 3)
+        TimelineView(.animation(paused: !working || progressValue != nil)) { context in
+            let angle = Angle.degrees(context.date.timeIntervalSinceReferenceDate.truncatingRemainder(dividingBy: 0.9) / 0.9 * 360)
+            ZStack {
+                Circle().stroke(Color.xBlue.opacity(0.22), lineWidth: 2)
+                Circle()
+                    .trim(from: 0, to: arcEnd)
+                    .stroke(Color.xBlue, style: StrokeStyle(lineWidth: 2, lineCap: .round))
+                    .rotationEffect(progressValue != nil ? .degrees(-90) : (working ? angle : frozen))
+                Circle()
+                    .fill(Color.xBlue)
+                    .scaleEffect(filled ? 1 : 0.3)
+                    .opacity(filled ? 1 : 0)
+                Checkmark()
+                    .trim(from: 0, to: checkDrawn)
+                    .stroke(.white, style: StrokeStyle(lineWidth: 2.2, lineCap: .round, lineJoin: .round))
+                    .padding(5.5)
+                // Clock hands for scheduled posts.
+                Group {
+                    Capsule().fill(Color.xBlue).frame(width: 2, height: 6.5).offset(y: -3.25)
+                        .rotationEffect(.degrees(handsIn ? 360 : 0))
+                    Capsule().fill(Color.xBlue).frame(width: 2, height: 5).offset(y: -2.5)
+                        .rotationEffect(.degrees(handsIn ? 120 : 0))
+                    Circle().fill(Color.xBlue).frame(width: 3, height: 3)
+                }
+                .opacity(handsIn ? 1 : 0)
+                .scaleEffect(handsIn ? 1 : 0.4)
+                Circle()
+                    .stroke(Color.xBlue, lineWidth: 1.5)
+                    .scaleEffect(ripple ? 2.2 : 1)
+                    .opacity(ripple ? 0 : (filled ? 0.6 : 0))
+            }
+            .onChange(of: working) { if !working { frozen = angle } }
         }
-        .onAppear { withAnimation(.spring(duration: 1.0, bounce: 0.3)) { wound = true } }
+        .onChange(of: phase) { advance() }
+        .onAppear { advance() }
     }
+
+    @State private var frozen: Angle = .zero
+    private var progressValue: Double? { if case .working(let value) = phase { return value } else { return nil } }
+
+    private func advance() {
+        switch phase {
+        case .working:
+            break
+        case .done:
+            withAnimation(.easeOut(duration: 0.24)) { ringClosed = true }
+            withAnimation(.spring(duration: 0.42, bounce: 0.35).delay(0.16)) { filled = true }
+            withAnimation(.easeOut(duration: 0.3).delay(0.28)) { checkDrawn = 1 }
+            withAnimation(.easeOut(duration: 0.6).delay(0.3)) { ripple = true }
+        case .scheduled:
+            withAnimation(.easeOut(duration: 0.24)) { ringClosed = true }
+            withAnimation(.spring(duration: 1.0, bounce: 0.3).delay(0.12)) { handsIn = true }
+        }
+    }
+}
+
+private struct Checkmark: Shape {
+    func path(in rect: CGRect) -> Path {
+        var path = Path()
+        path.move(to: CGPoint(x: rect.minX + rect.width * 0.08, y: rect.midY + rect.height * 0.04))
+        path.addLine(to: CGPoint(x: rect.minX + rect.width * 0.4, y: rect.maxY - rect.height * 0.14))
+        path.addLine(to: CGPoint(x: rect.maxX - rect.width * 0.06, y: rect.minY + rect.height * 0.18))
+        return path
+    }
+}
+
+/// Text swap: the old label lifts and blurs out while the new one rises in from below.
+private struct BlurSlide: Transition {
+    func body(content: Content, phase: TransitionPhase) -> some View {
+        content
+            .blur(radius: phase.isIdentity ? 0 : 5)
+            .opacity(phase.isIdentity ? 1 : 0)
+            .offset(y: phase == .willAppear ? 9 : (phase == .didDisappear ? -9 : 0))
+    }
+}
+
+private extension Transition where Self == BlurSlide {
+    static var blurSlide: BlurSlide { BlurSlide() }
 }
 
 private struct PressScaleStyle: ButtonStyle {
