@@ -33,21 +33,19 @@ struct MainView: View {
 
     var body: some View {
         @Bindable var model = model
-        // System tab bar in the toolbar: Apple's recommended top-level navigation without a sidebar.
-        TabView(selection: $model.section) {
-            ForEach(Section.allCases) { section in
-                Tab(section.title, systemImage: section.symbol, value: section) {
-                    NavigationStack(path: model.path(for: section)) {
-                        root(for: section)
-                            .navigationDestination(for: Route.self) { RouteView(route: $0).toolbar { sharedToolbar } }
-                            .toolbar { sharedToolbar }
-                    }
-                    .background(Color.black)
-                    .toolbarBackgroundVisibility(.hidden, for: .windowToolbar)
-                }
-            }
+        NavigationStack(path: model.path(for: model.section)) {
+            root(for: model.section)
+                .navigationDestination(for: Route.self) { RouteView(route: $0) }
         }
-        .tabViewStyle(.tabBarOnly)
+        .id(model.section)
+        .background(Color.black)
+        .toolbar {
+            ToolbarItem(placement: .principal) { SectionSwitcher() }
+                .sharedBackgroundVisibility(.hidden)
+            sharedToolbar
+        }
+        .toolbar(removing: .title)
+        .toolbarBackgroundVisibility(.hidden, for: .windowToolbar)
         .overlay(alignment: .top) {
             if let banner = model.banner {
                 GlassBanner(text: banner) { withAnimation { model.banner = nil } }
@@ -87,6 +85,75 @@ struct MainView: View {
         }
         ToolbarSpacer(.fixed, placement: .primaryAction)
         ToolbarItem(placement: .primaryAction) { AccountMenu() }
+    }
+}
+
+/// Top-level navigation: one Liquid Glass capsule with icon + title segments and a sliding selection.
+/// Collapses to icons only when the window is narrow.
+private struct SectionSwitcher: View {
+    @Environment(AppModel.self) private var model
+    @Namespace private var selection
+
+    var body: some View {
+        ViewThatFits(in: .horizontal) {
+            segments(showTitles: true)
+            segments(showTitles: false)
+        }
+    }
+
+    private func segments(showTitles: Bool) -> some View {
+        HStack(spacing: 2) {
+            ForEach(Section.allCases) { section in
+                SectionSegment(section: section, isSelected: model.section == section, showTitle: showTitles, namespace: selection) {
+                    withAnimation(.bouncy(duration: 0.35)) { model.section = section }
+                }
+            }
+        }
+        .padding(4)
+        .glassEffect(.regular, in: .capsule)
+    }
+}
+
+private struct SectionSegment: View {
+    var section: Section
+    var isSelected: Bool
+    var showTitle: Bool
+    var namespace: Namespace.ID
+    var action: () -> Void
+    @State private var hovering = false
+
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 7) {
+                Image(systemName: isSelected ? section.selectedSymbol : section.symbol)
+                    .font(.system(size: 14, weight: isSelected ? .semibold : .regular))
+                    .contentTransition(.symbolEffect(.replace))
+                    .frame(width: 18)
+                if showTitle {
+                    Text(section.title)
+                        .font(.system(size: 13, weight: isSelected ? .semibold : .medium))
+                        .fixedSize()
+                }
+            }
+            .foregroundStyle(isSelected ? Color.white : (hovering ? Color.white.opacity(0.9) : Color.xGray))
+            .padding(.horizontal, showTitle ? 14 : 12)
+            .frame(height: 30)
+            .background {
+                if isSelected {
+                    Capsule().fill(.white.opacity(0.14))
+                        .matchedGeometryEffect(id: "selection", in: namespace)
+                } else if hovering {
+                    Capsule().fill(.white.opacity(0.06))
+                }
+            }
+            .contentShape(Capsule())
+        }
+        .buttonStyle(.plain)
+        .onHover { hovering = $0 }
+        .animation(.easeOut(duration: 0.15), value: hovering)
+        .help(section.title)
+        .accessibilityLabel(section.title)
+        .accessibilityAddTraits(isSelected ? [.isSelected, .isButton] : .isButton)
     }
 }
 
