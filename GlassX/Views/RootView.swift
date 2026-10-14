@@ -23,11 +23,15 @@ struct RootView: View {
         .onAppear {
             // `--window-width N`: screenshot narrow layouts.
             let args = CommandLine.arguments
-            if let i = args.firstIndex(of: "--window-width"), let width = args[safe: i + 1].flatMap(Double.init) {
+            let width = args.firstIndex(of: "--window-width").flatMap { args[safe: $0 + 1] }.flatMap(Double.init)
+            let height = args.firstIndex(of: "--window-height").flatMap { args[safe: $0 + 1] }.flatMap(Double.init)
+            if width != nil || height != nil {
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
                     for window in NSApp.windows where window.isVisible && window.canBecomeMain {
                         var frame = window.frame
-                        frame.size.width = width
+                        let top = frame.maxY
+                        if let width { frame.size.width = width }
+                        if let height { frame.size.height = height; frame.origin.y = top - height }
                         window.setFrame(frame, display: true)
                     }
                 }
