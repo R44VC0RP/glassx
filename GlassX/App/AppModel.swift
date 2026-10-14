@@ -86,6 +86,14 @@ final class AppModel {
             startGuestPreview(screenName: screenName)
             return
         }
+        // Screenshot helpers: `--section notifications`, `--open-tweet <id>`.
+        let args = CommandLine.arguments
+        if let i = args.firstIndex(of: "--section"), let raw = args[safe: i + 1], let section = Section(rawValue: raw) {
+            self.section = section
+        }
+        if let i = args.firstIndex(of: "--open-tweet"), let id = args[safe: i + 1] {
+            paths[section, default: []].append(.tweetID(id))
+        }
         #endif
         if let cookies = Keychain.loadCookies(), cookies["auth_token"] != nil {
             start(with: cookies)
