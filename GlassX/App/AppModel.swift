@@ -68,6 +68,9 @@ final class AppModel {
     var paths: [Section: [Route]] = [:]
     var compose: ComposeTarget?
     var banner: String?
+    /// Symbol for `banner`; warning by default, set by `showNotice` for good news.
+    var bannerSymbol = "exclamationmark.triangle.fill"
+    let scheduler = PostScheduler()
     var refreshToken = UUID()
     private(set) var engagement: [String: EngagementState] = [:]
     private(set) var client: XClient?
@@ -114,6 +117,47 @@ final class AppModel {
                 self.section = other
                 try? await Task.sleep(for: .seconds(3))
                 self.section = original
+            }
+        }
+        if args.contains("--dry-run-posts") { XClient.dryRun = true }
+        // `--test-upload`: upload a generated image for real (no post) and log the media ID.
+        if args.contains("--test-upload") {
+            XClient.dryRun = true
+            XClient.dryRunAllowsUpload = true
+            Task { @MainActor in
+                try? await Task.sleep(for: .seconds(4))
+                guard let client = self.client else { return }
+                let image = NSImage(size: NSSize(width: 64, height: 64), flipped: false) { rect in
+                    NSColor.systemBlue.setFill(); rect.fill(); return true
+                }
+                let png = NSBitmapImageRep(data: image.tiffRepresentation!)!.representation(using: .png, properties: [:])!
+                do {
+                    let id = try await client.uploadMedia(png, mimeType: "image/png", category: .image)
+                    FeedModel.log.notice("TEST UPLOAD OK media_id=\(id, privacy: .public)")
+                } catch {
+                    FeedModel.log.error("TEST UPLOAD FAILED \(error.localizedDescription, privacy: .public)")
+                }
+            }
+        }
+        if args.contains("--reset-pacing") {
+            for key in ["pacing.enabled", "pacing.gapMinutes", "pacing.startHour", "pacing.endHour", "pacing.lastSentAt"] {
+                UserDefaults.standard.removeObject(forKey: key)
+            }
+        }
+        // `--test-pacing`: dry-run three posts back to back with pacing on (1 minute apart).
+        if args.contains("--test-pacing") {
+            XClient.dryRun = true
+            UserDefaults.standard.set(true, forKey: "pacing.enabled")
+            UserDefaults.standard.set(1, forKey: "pacing.gapMinutes")
+            UserDefaults.standard.set(0, forKey: "pacing.startHour")
+            UserDefaults.standard.set(0, forKey: "pacing.endHour")
+            UserDefaults.standard.set(0.0, forKey: "pacing.lastSentAt")
+            Task { @MainActor in
+                try? await Task.sleep(for: .seconds(5))
+                for n in 1...3 {
+                    let outcome = await self.post(text: "pacing test \(n)", replyTo: nil)
+                    FeedModel.log.notice("TEST PACING post \(n): \(String(describing: outcome), privacy: .public)")
+                }
             }
         }
         if let i = args.firstIndex(of: "--open-user"), let name = args[safe: i + 1] {
@@ -169,6 +213,7 @@ final class AppModel {
         self.client = client
         refreshToken = UUID()
         phase = .signedIn
+        scheduler.start(model: self)
         Task { await loadViewer() }
     }
 
@@ -216,7 +261,13 @@ final class AppModel {
     func report(_ error: Error) {
         if case XError.unauthorized = error { signOut(message: error.localizedDescription); return }
         if error is CancellationError || (error as? URLError)?.code == .cancelled { return }
+        bannerSymbol = "exclamationmark.triangle.fill"
         banner = error.localizedDescription
+    }
+
+    func showNotice(_ message: String, symbol: String = "checkmark.circle.fill") {
+        bannerSymbol = symbol
+        banner = message
     }
 
     // MARK: Engagement
@@ -263,15 +314,38 @@ final class AppModel {
 
     // MARK: Posting
 
-    func post(text: String, replyTo: XTweet?) async -> Bool {
-        guard let client else { return false }
+    enum PostOutcome { case sent, queued(Date), failed }
+
+    /// Sends now, or queues it when "Space out my posts" says it's too soon.
+    func post(text: String, replyTo: XTweet?, attachments: [PostAttachment] = [],
+              progress: (@Sendable (Double) -> Void)? = nil) async -> PostOutcome {
+        guard let client else { return .failed }
+        if scheduler.wouldQueue(isReply: replyTo != nil) {
+            do {
+                let queued = try scheduler.enqueue(text: text, replyTo: replyTo, attachments: attachments)
+                showNotice("Scheduled for \(queued.sendAt.formatted(date: Calendar.current.isDateInToday(queued.sendAt) ? .omitted : .abbreviated, time: .shortened))",
+                           symbol: "clock.fill")
+                return .queued(queued.sendAt)
+            } catch {
+                report(error)
+                return .failed
+            }
+        }
         do {
-            try await client.post(text: text, replyTo: replyTo?.id)
+            var mediaIDs: [String] = []
+            for (index, attachment) in attachments.enumerated() {
+                let share = 1 / Double(max(attachments.count, 1))
+                mediaIDs.append(try await client.uploadMedia(attachment.data, mimeType: attachment.mimeType, category: attachment.category) { value in
+                    progress?((Double(index) + value) * share)
+                })
+            }
+            try await client.post(text: text, replyTo: replyTo?.id, mediaIDs: mediaIDs)
+            scheduler.recordSent()
             refreshToken = UUID()
-            return true
+            return .sent
         } catch {
             report(error)
-            return false
+            return .failed
         }
     }
 }

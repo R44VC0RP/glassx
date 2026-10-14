@@ -19,8 +19,11 @@
 		601FCC9307E3610D8FDC1469 /* AppModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = ED607A30EC4516AB5F463EFA /* AppModel.swift */; };
 		6ED9055E7514B6E9ECE220A9 /* FeedView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0AB3832878F6655570FFBDB2 /* FeedView.swift */; };
 		883DF0A4E831A20CC44FC50C /* Keychain.swift in Sources */ = {isa = PBXBuildFile; fileRef = B3229A449B4EA69C352EF8F3 /* Keychain.swift */; };
+		97A4857E930E84675834EB11 /* PostScheduler.swift in Sources */ = {isa = PBXBuildFile; fileRef = C2DE552FED289152A47D86C8 /* PostScheduler.swift */; };
 		A9D7723C8F1445AA19C257E7 /* Models.swift in Sources */ = {isa = PBXBuildFile; fileRef = 602E589E3B665DBA533988B3 /* Models.swift */; };
 		AC63D9BC3838531F6AA9B57D /* RootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C472A7366ED523F97FEFE995 /* RootView.swift */; };
+		AD4DBE97E133B87F2AFE2D91 /* Attachment.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0E576D59E5E9E561FDFF8835 /* Attachment.swift */; };
+		B55B8C4C9E6FDF4C5FE8A9CA /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 43DB0C8824388983EF67B5F4 /* SettingsView.swift */; };
 		C248ACC024B6248F2B4B695A /* TimelineParser.swift in Sources */ = {isa = PBXBuildFile; fileRef = A005263E62798D83BB5F0FED /* TimelineParser.swift */; };
 		CD136B7A9781201916A1D662 /* GlassXApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6A2CD8B19049DA5CDAAAB377 /* GlassXApp.swift */; };
 		D21E37E2DF4F6FEE2B4A9CB9 /* LoginView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 76AB7076709AE211531A09FC /* LoginView.swift */; };
@@ -33,10 +36,12 @@
 
 /* Begin PBXFileReference section */
 		0AB3832878F6655570FFBDB2 /* FeedView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FeedView.swift; sourceTree = "<group>"; };
+		0E576D59E5E9E561FDFF8835 /* Attachment.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Attachment.swift; sourceTree = "<group>"; };
 		0E5DE8F1A0E6CA894FB29760 /* TransactionID.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TransactionID.swift; sourceTree = "<group>"; };
 		26082D5C18CA188E73531971 /* WebClientCatalog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WebClientCatalog.swift; sourceTree = "<group>"; };
 		378216ABC47E240160E09D0D /* InlineVideo.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InlineVideo.swift; sourceTree = "<group>"; };
 		432358400CFF1BC61FB251D8 /* Components.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Components.swift; sourceTree = "<group>"; };
+		43DB0C8824388983EF67B5F4 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		559FDD353813F70BEADF8278 /* TweetRow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TweetRow.swift; sourceTree = "<group>"; };
 		602E589E3B665DBA533988B3 /* Models.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Models.swift; sourceTree = "<group>"; };
 		6551CD7BE50D315542A114A4 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
@@ -52,6 +57,7 @@
 		A005263E62798D83BB5F0FED /* TimelineParser.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TimelineParser.swift; sourceTree = "<group>"; };
 		AFC8FEF43849C6D70F320C14 /* JSONValue.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JSONValue.swift; sourceTree = "<group>"; };
 		B3229A449B4EA69C352EF8F3 /* Keychain.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Keychain.swift; sourceTree = "<group>"; };
+		C2DE552FED289152A47D86C8 /* PostScheduler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PostScheduler.swift; sourceTree = "<group>"; };
 		C472A7366ED523F97FEFE995 /* RootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootView.swift; sourceTree = "<group>"; };
 		D0300424FFC980B95632DFF8 /* LoginWebView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LoginWebView.swift; sourceTree = "<group>"; };
 		D16422762A6E9213378A7AEA /* Screens.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Screens.swift; sourceTree = "<group>"; };
@@ -80,6 +86,15 @@
 			);
 			sourceTree = "<group>";
 		};
+		3720ED71D5F28E7015FBE0AF /* Posting */ = {
+			isa = PBXGroup;
+			children = (
+				0E576D59E5E9E561FDFF8835 /* Attachment.swift */,
+				C2DE552FED289152A47D86C8 /* PostScheduler.swift */,
+			);
+			path = Posting;
+			sourceTree = "<group>";
+		};
 		460A69FDA4C4343C7A1E523E /* Views */ = {
 			isa = PBXGroup;
 			children = (
@@ -92,6 +107,7 @@
 				9509CAB996B9AB4D06FEDF64 /* RemoteImage.swift */,
 				C472A7366ED523F97FEFE995 /* RootView.swift */,
 				D16422762A6E9213378A7AEA /* Screens.swift */,
+				43DB0C8824388983EF67B5F4 /* SettingsView.swift */,
 				559FDD353813F70BEADF8278 /* TweetRow.swift */,
 				96D6513A6ECDB1A5739CA854 /* TweetText.swift */,
 			);
@@ -123,6 +139,7 @@
 				6FE11C6C0809F1AA8D60AC6C /* App */,
 				E47C25A80BC30530F609A907 /* Auth */,
 				484B5AAF842F375A979DC5DB /* Models */,
+				3720ED71D5F28E7015FBE0AF /* Posting */,
 				460A69FDA4C4343C7A1E523E /* Views */,
 			);
 			path = GlassX;
@@ -206,6 +223,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				601FCC9307E3610D8FDC1469 /* AppModel.swift in Sources */,
+				AD4DBE97E133B87F2AFE2D91 /* Attachment.swift in Sources */,
 				00EE8B9391BF7650D8567527 /* BrowserCookieImporter.swift in Sources */,
 				E8F5C16A53BEF1D318368AFD /* Components.swift in Sources */,
 				2366D3216F116DF3DD011E7F /* ComposeView.swift in Sources */,
@@ -218,9 +236,11 @@
 				44EF7A9C0C4C70A86CED146A /* LoginWebView.swift in Sources */,
 				48EE4CF037D6AA31738DB597 /* MediaViews.swift in Sources */,
 				A9D7723C8F1445AA19C257E7 /* Models.swift in Sources */,
+				97A4857E930E84675834EB11 /* PostScheduler.swift in Sources */,
 				45F3AE298C17DB9E4410FB76 /* RemoteImage.swift in Sources */,
 				AC63D9BC3838531F6AA9B57D /* RootView.swift in Sources */,
 				F0D300F81F8BC49F0AD4793A /* Screens.swift in Sources */,
+				B55B8C4C9E6FDF4C5FE8A9CA /* SettingsView.swift in Sources */,
 				C248ACC024B6248F2B4B695A /* TimelineParser.swift in Sources */,
 				E617D3A93D083C1B2434C9D3 /* TransactionID.swift in Sources */,
 				4C6AD6F03497A637D109BCF6 /* TweetRow.swift in Sources */,

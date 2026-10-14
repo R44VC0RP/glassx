@@ -191,7 +191,8 @@ struct GlassBanner: View {
 
     var body: some View {
         HStack(spacing: 10) {
-            Image(systemName: systemImage).foregroundStyle(.orange)
+            Image(systemName: systemImage)
+                .foregroundStyle(systemImage.hasPrefix("exclamationmark") ? Color.orange : Color.xBlue)
             Text(text).font(.callout).lineLimit(3)
             Button(action: onClose) { Image(systemName: "xmark").font(.caption.bold()) }
                 .buttonStyle(.plain)

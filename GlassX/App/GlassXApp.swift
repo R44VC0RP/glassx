@@ -51,6 +51,13 @@ struct GlassXApp: App {
             }
         }
 
+        Settings {
+            SettingsView()
+                .environment(model)
+                .preferredColorScheme(.dark)
+                .tint(.xBlue)
+        }
+
         WindowGroup("Media", for: MediaGallery.self) { $gallery in
             MediaViewer(gallery: $gallery)
                 .tint(.xBlue)

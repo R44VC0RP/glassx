@@ -102,7 +102,7 @@ struct MainView: View {
         .toolbarBackgroundVisibility(.hidden, for: .windowToolbar)
         .overlay(alignment: .top) {
             if let banner = model.banner {
-                GlassBanner(text: banner) { withAnimation { model.banner = nil } }
+                GlassBanner(text: banner, systemImage: model.bannerSymbol) { withAnimation { model.banner = nil } }
                     .padding(.top, 52)
                     .transition(.move(edge: .top).combined(with: .opacity))
                     .task(id: banner) {
@@ -113,7 +113,7 @@ struct MainView: View {
         }
         .animation(.smooth, value: model.banner)
         .sheet(item: $model.compose) { target in
-            NavigationStack { ComposeView(target: target) }
+            ComposeView(target: target)
         }
     }
 
@@ -129,6 +129,10 @@ struct MainView: View {
     }
 
     @ToolbarContentBuilder private var sharedToolbar: some ToolbarContent {
+        if !model.scheduler.queue.isEmpty {
+            ToolbarItem(placement: .primaryAction) { QueueToolbarButton() }
+            ToolbarSpacer(.fixed, placement: .primaryAction)
+        }
         ToolbarItem(placement: .primaryAction) {
             Button("Refresh", systemImage: "arrow.clockwise") { model.refreshToken = UUID() }
         }

@@ -136,7 +136,7 @@ struct TweetDetailView: View {
         guard !text.isEmpty, !isPosting else { return }
         isPosting = true
         Task {
-            if await model.post(text: text, replyTo: tweet) {
+            if case .failed = await model.post(text: text, replyTo: tweet) {} else {
                 reply = ""
                 replyFocused = false
             }
