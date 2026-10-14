@@ -44,6 +44,7 @@
 		378216ABC47E240160E09D0D /* InlineVideo.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InlineVideo.swift; sourceTree = "<group>"; };
 		432358400CFF1BC61FB251D8 /* Components.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Components.swift; sourceTree = "<group>"; };
 		43DB0C8824388983EF67B5F4 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
+		4B02380633AE00B6F49147AA /* Base.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Base.xcconfig; sourceTree = "<group>"; };
 		559FDD353813F70BEADF8278 /* TweetRow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TweetRow.swift; sourceTree = "<group>"; };
 		602E589E3B665DBA533988B3 /* Models.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Models.swift; sourceTree = "<group>"; };
 		6551CD7BE50D315542A114A4 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
@@ -82,9 +83,18 @@
 			path = API;
 			sourceTree = "<group>";
 		};
+		1EFC4B328D4E5FCDBC7F7C7B /* Config */ = {
+			isa = PBXGroup;
+			children = (
+				4B02380633AE00B6F49147AA /* Base.xcconfig */,
+			);
+			path = Config;
+			sourceTree = "<group>";
+		};
 		2F4E025412F4F179EDB7F6B7 = {
 			isa = PBXGroup;
 			children = (
+				1EFC4B328D4E5FCDBC7F7C7B /* Config */,
 				54C0628BF8D53FD3268A3810 /* GlassX */,
 				520F5EC40A4D24DB49058AE8 /* Products */,
 			);
@@ -209,6 +219,7 @@
 				LastUpgradeCheck = 1430;
 				TargetAttributes = {
 					C9D0A5854E5017184B614702 = {
+						DevelopmentTeam = "";
 						ProvisioningStyle = Manual;
 					};
 				};
@@ -285,8 +296,6 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = GlassX;
 				CODE_SIGN_ENTITLEMENTS = GlassX/GlassX.entitlements;
-				CODE_SIGN_IDENTITY = 19AE73C094F20EE9C3DE11B9E2CE129D5D197C32;
-				CODE_SIGN_STYLE = Manual;
 				COMBINE_HIDPI_IMAGES = YES;
 				ENABLE_HARDENED_RUNTIME = YES;
 				GENERATE_INFOPLIST_FILE = NO;
@@ -306,8 +315,6 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = GlassX;
 				CODE_SIGN_ENTITLEMENTS = GlassX/GlassX.entitlements;
-				CODE_SIGN_IDENTITY = 19AE73C094F20EE9C3DE11B9E2CE129D5D197C32;
-				CODE_SIGN_STYLE = Manual;
 				COMBINE_HIDPI_IMAGES = YES;
 				ENABLE_HARDENED_RUNTIME = YES;
 				GENERATE_INFOPLIST_FILE = NO;
@@ -324,6 +331,7 @@
 		};
 		AE4E9D42CE97A55FFD7CBC11 /* Debug */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = 4B02380633AE00B6F49147AA /* Base.xcconfig */;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
 				CLANG_ANALYZER_NONNULL = YES;
@@ -388,6 +396,7 @@
 		};
 		B9BE3560E9C0C472C2058726 /* Release */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = 4B02380633AE00B6F49147AA /* Base.xcconfig */;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
 				CLANG_ANALYZER_NONNULL = YES;

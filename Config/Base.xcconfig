@@ -1,0 +1,8 @@
+// Signing defaults: ad-hoc ("Sign to Run Locally") so anyone can build from source.
+// Put your own identity in Config/Local.xcconfig (gitignored), e.g.
+//   CODE_SIGN_IDENTITY = Apple Development: Your Name (XXXXXXXXXX)
+CODE_SIGN_STYLE = Manual
+CODE_SIGN_IDENTITY = -
+DEVELOPMENT_TEAM =
+
+#include? "Local.xcconfig"

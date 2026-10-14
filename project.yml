@@ -9,6 +9,9 @@ settings:
     SWIFT_VERSION: "5.0"
     MACOSX_DEPLOYMENT_TARGET: "27.0"
     ENABLE_USER_SCRIPT_SANDBOXING: YES
+configFiles:
+  Debug: Config/Base.xcconfig
+  Release: Config/Base.xcconfig
 targets:
   GlassX:
     type: application
@@ -33,8 +36,6 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.ryanvogel.glassx
         PRODUCT_NAME: GlassX
-        CODE_SIGN_STYLE: Manual
-        CODE_SIGN_IDENTITY: "19AE73C094F20EE9C3DE11B9E2CE129D5D197C32"
         ENABLE_HARDENED_RUNTIME: YES
         ASSETCATALOG_COMPILER_APPICON_NAME: GlassX
         GENERATE_INFOPLIST_FILE: NO
