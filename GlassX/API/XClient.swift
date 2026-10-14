@@ -63,10 +63,10 @@ actor XClient {
             let snapshot = try await task.value
             catalog = snapshot
             if let data = try? JSONEncoder().encode(snapshot) { try? data.write(to: Self.catalogFile, options: .atomic) }
-            log.info("Catalog built: \(snapshot.operations.count) operations, transaction id \(snapshot.transactionAnimationKey == nil ? "unavailable" : "ready")")
+            log.notice("Catalog built: \(snapshot.operations.count) operations, transaction id \(snapshot.transactionAnimationKey == nil ? "unavailable" : "ready", privacy: .public)")
             return snapshot
         } catch {
-            log.error("Catalog build failed: \(error.localizedDescription)")
+            log.error("Catalog build failed: \(error.localizedDescription, privacy: .public)")
             if let catalog { return catalog }
             let fallback = CatalogSnapshot.fallback
             catalog = fallback
@@ -203,7 +203,9 @@ actor XClient {
                                      transactionPath: path, generator: catalog.transactionGenerator)
             }
 
+            let started = Date.now
             let (json, status) = try await perform(request)
+            log.notice("\(operation, privacy: .public) → HTTP \(status) in \(Int(Date.now.timeIntervalSince(started) * 1000))ms")
             if (200..<300).contains(status) {
                 let object = json as? [String: Any]
                 if object?["data"] == nil, let message = Self.errorMessages(json).first { throw XError.api(message) }
@@ -211,7 +213,7 @@ actor XClient {
             }
 
             let message = Self.errorMessages(json).first ?? ((json as? [String: Any])?["__message"] as? String ?? "")
-            log.error("\(operation) failed: HTTP \(status) \(message)")
+            log.error("\(operation, privacy: .public) failed: HTTP \(status) \(message, privacy: .public)")
             if status == 400, let range = message.range(of: "cannot be null:") {
                 for name in message[range.upperBound...].split(separator: ",") {
                     extraFeatures[name.trimmingCharacters(in: .whitespaces)] = false
@@ -301,8 +303,8 @@ actor XClient {
         return TimelineParser.page(from: try await graphQL("Bookmarks", variables: variables))
     }
 
-    func notifications(cursor: String?) async throws -> FeedPage {
-        var variables: [String: JSONValue] = ["timeline_type": "All", "count": 20]
+    func notifications(type: String = "All", cursor: String?) async throws -> FeedPage {
+        var variables: [String: JSONValue] = ["timeline_type": .string(type), "count": 20]
         if let cursor { variables["cursor"] = .string(cursor) }
         return TimelineParser.page(from: try await graphQL("NotificationsTimeline", variables: variables))
     }

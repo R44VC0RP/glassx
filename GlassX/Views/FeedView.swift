@@ -25,11 +25,20 @@ final class FeedModel {
         error = nil
     }
 
-    func loadIfNeeded(_ model: AppModel) async {
-        guard loadedToken != model.refreshToken else { return }
+    /// Starts a load owned by the model, so views being rebuilt or disappearing never cancel it.
+    func loadIfNeeded(_ model: AppModel) {
+        guard loadedToken != model.refreshToken, model.client != nil else { return }
         loadedToken = model.refreshToken
-        await reload(model)
+        loadTask?.cancel()
+        loadTask = Task { await reload(model) }
     }
+
+    func retry(_ model: AppModel) {
+        loadTask?.cancel()
+        loadTask = Task { await reload(model) }
+    }
+
+    private var loadTask: Task<Void, Never>?
 
     func reload(_ model: AppModel) async {
         guard let client = model.client else { return }
@@ -38,11 +47,14 @@ final class FeedModel {
         defer { isLoading = false }
         do {
             let page = try await loader(client, nil)
-            withAnimation(.smooth) { items = page.items }
+            withAnimation(.smooth) {
+                items = page.items
+                hasLoaded = true
+            }
             cursor = page.bottomCursor
             reachedEnd = page.bottomCursor == nil || page.items.isEmpty
-            hasLoaded = true
         } catch {
+            if Task.isCancelled || error is CancellationError || (error as? URLError)?.code == .cancelled { return }
             if case XError.unauthorized = error { model.report(error) }
             self.error = error.localizedDescription
             hasLoaded = true
@@ -79,7 +91,7 @@ struct FeedView<Header: View>: View {
                 header
                 ForEach(feed.items) { item in
                     FeedItemView(item: item)
-                    if !item.connectsBelow { Divider() }
+                    if !item.connectsBelow { Hairline() }
                 }
                 footer
             }
@@ -96,7 +108,7 @@ struct FeedView<Header: View>: View {
                     } description: {
                         Text(error)
                     } actions: {
-                        Button("Try Again") { Task { await feed.reload(model) } }.buttonStyle(.glass)
+                        Button("Try Again") { feed.retry(model) }.buttonStyle(.glass)
                     }
                 } else {
                     ContentUnavailableView(emptyTitle, systemImage: emptySymbol)
@@ -105,7 +117,8 @@ struct FeedView<Header: View>: View {
                 ProgressView().controlSize(.large)
             }
         }
-        .task(id: model.refreshToken) { await feed.loadIfNeeded(model) }
+        .onAppear { feed.loadIfNeeded(model) }
+        .onChange(of: model.refreshToken) { feed.loadIfNeeded(model) }
     }
 
     @ViewBuilder private var footer: some View {

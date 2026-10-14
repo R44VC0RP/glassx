@@ -4,6 +4,31 @@ extension Color {
     static let xBlue = Color(red: 29 / 255, green: 155 / 255, blue: 240 / 255)
     static let xPink = Color(red: 249 / 255, green: 24 / 255, blue: 128 / 255)
     static let xGreen = Color(red: 0, green: 186 / 255, blue: 124 / 255)
+    /// X's "Lights out" divider and thread-line color.
+    static let xLine = Color(red: 47 / 255, green: 51 / 255, blue: 54 / 255)
+    /// X's secondary text gray.
+    static let xGray = Color(red: 113 / 255, green: 118 / 255, blue: 123 / 255)
+    static let xPlaceholder = Color.white.opacity(0.06)
+}
+
+/// A one-pixel divider in X's line color.
+struct Hairline: View {
+    @Environment(\.displayScale) private var scale
+    var body: some View {
+        Rectangle().fill(Color.xLine).frame(height: 1 / scale)
+    }
+}
+
+private struct ShowsReplyContextKey: EnvironmentKey {
+    static let defaultValue = true
+}
+
+extension EnvironmentValues {
+    /// "Replying to @…" is redundant inside a thread, where the reply line already shows it.
+    var showsReplyContext: Bool {
+        get { self[ShowsReplyContextKey.self] }
+        set { self[ShowsReplyContextKey.self] = newValue }
+    }
 }
 
 extension Date {
@@ -36,12 +61,40 @@ struct Avatar: View {
         AsyncImage(url: size > 56 ? user?.largeAvatarURL : user?.avatarURL.flatMap { URL(string: $0.absoluteString.replacingOccurrences(of: "_normal.", with: "_bigger.")) }) { image in
             image.resizable().scaledToFill()
         } placeholder: {
-            Rectangle().fill(.quaternary)
+            Rectangle().fill(Color.xPlaceholder)
         }
         .frame(width: size, height: size)
         .clipShape(shape)
-        .overlay(shape.strokeBorder(.primary.opacity(0.08), lineWidth: 0.5))
+        .overlay(shape.strokeBorder(Color.xLine, lineWidth: 1))
         .accessibilityHidden(true)
+    }
+}
+
+/// Overlapping avatars, first on top, each cut out of the next with a black ring.
+/// Hovering fans the stack out so every face is visible.
+struct AvatarStack: View {
+    var users: [XUser]
+    var size: CGFloat = 32
+    var onTap: (XUser) -> Void = { _ in }
+    @State private var expanded = false
+
+    var body: some View {
+        HStack(spacing: expanded ? 4 : -size * 0.3) {
+            ForEach(Array(users.enumerated()), id: \.element.id) { index, user in
+                Avatar(user: user, size: size)
+                    .padding(2)
+                    .background(
+                        RoundedRectangle(cornerRadius: user.hasSquareAvatar ? size * 0.26 : size, style: .continuous)
+                            .fill(Color.black)
+                    )
+                    .zIndex(Double(users.count - index))
+                    .onTapGesture { onTap(user) }
+                    .pointerStyle(.link)
+                    .help("\(user.name) · @\(user.screenName)")
+            }
+        }
+        .padding(-2)
+        .onHover { hovering in withAnimation(.snappy(duration: 0.25)) { expanded = hovering } }
     }
 }
 
@@ -80,15 +133,15 @@ struct AuthorLine: View {
                 .layoutPriority(1)
             VerifiedBadge(user: user, size: compact ? 12 : 14)
             if user.isProtected {
-                Image(systemName: "lock.fill").font(.caption2).foregroundStyle(.secondary)
+                Image(systemName: "lock.fill").font(.caption2).foregroundStyle(Color.xGray)
             }
             Text("@\(user.screenName)")
-                .foregroundStyle(.secondary)
+                .foregroundStyle(Color.xGray)
                 .lineLimit(1)
             if let date {
-                Text("·").foregroundStyle(.secondary)
+                Text("·").foregroundStyle(Color.xGray)
                 Text(date.timelineLabel)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(Color.xGray)
                     .fixedSize()
                     .help(date.formatted(date: .complete, time: .shortened))
             }
@@ -146,7 +199,7 @@ struct GlassBanner: View {
             Text(text).font(.callout).lineLimit(3)
             Button(action: onClose) { Image(systemName: "xmark").font(.caption.bold()) }
                 .buttonStyle(.plain)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(Color.xGray)
                 .accessibilityLabel("Dismiss")
         }
         .padding(.horizontal, 16)
@@ -154,6 +207,49 @@ struct GlassBanner: View {
         .glassEffect(.regular, in: .capsule)
         .padding(.top, 8)
         .frame(maxWidth: 560)
+    }
+}
+
+/// X-style text tabs with a sliding blue underline. Lives in the content layer (no glass),
+/// pinned under the toolbar with `safeAreaBar` so the feed blurs beneath it.
+struct FeedTabs<Value: Hashable>: View {
+    @Binding var selection: Value
+    var options: [(Value, String)]
+    @Namespace private var underline
+
+    var body: some View {
+        HStack(spacing: 0) {
+            ForEach(options, id: \.0) { value, title in
+                let selected = value == selection
+                Button {
+                    withAnimation(.snappy(duration: 0.25)) { selection = value }
+                } label: {
+                    VStack(spacing: 0) {
+                        Text(title)
+                            .font(.system(size: 15, weight: selected ? .bold : .medium))
+                            .foregroundStyle(selected ? Color.white : Color.xGray)
+                            .frame(maxHeight: .infinity)
+                        ZStack {
+                            if selected {
+                                Capsule()
+                                    .fill(Color.xBlue)
+                                    .frame(width: 56, height: 4)
+                                    .matchedGeometryEffect(id: "underline", in: underline)
+                            }
+                        }
+                        .frame(height: 4)
+                    }
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 52)
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .accessibilityAddTraits(selected ? .isSelected : [])
+            }
+        }
+        .overlay(alignment: .bottom) { Hairline() }
+        .frame(maxWidth: 640)
+        .frame(maxWidth: .infinity)
     }
 }
 

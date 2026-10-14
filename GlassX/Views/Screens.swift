@@ -9,17 +9,10 @@ struct HomeView: View {
     var body: some View {
         FeedView(feed: following ? model.followingFeed : model.forYouFeed, emptyTitle: "Your timeline is empty", emptySymbol: "house")
             .id(following)
-            .navigationTitle("Home")
-            .toolbar {
-                ToolbarItem(placement: .principal) {
-                    Picker("Timeline", selection: $following) {
-                        Text("For You").tag(false)
-                        Text("Following").tag(true)
-                    }
-                    .pickerStyle(.segmented)
-                    .frame(width: 220)
-                }
+            .safeAreaBar(edge: .top) {
+                FeedTabs(selection: $following, options: [(false, "For You"), (true, "Following")])
             }
+            .navigationTitle("Home")
     }
 }
 
@@ -54,23 +47,25 @@ struct TweetDetailView: View {
                 }
                 ForEach(parts.replies) { item in
                     FeedItemView(item: item)
-                    if !item.connectsBelow { Divider() }
+                    if !item.connectsBelow { Hairline() }
                 }
                 if feed.hasLoaded, !feed.reachedEnd, !parts.replies.isEmpty {
                     ProgressView().padding(24).onAppear { Task { await feed.loadMore(model) } }
                 }
                 if let error = feed.error {
-                    Text(error).font(.callout).foregroundStyle(.secondary).padding(24)
+                    Text(error).font(.callout).foregroundStyle(Color.xGray).padding(24)
                 }
-                Color.clear.frame(height: 80)
+                Color.clear.frame(height: 24)
             }
             .frame(maxWidth: 640)
             .frame(maxWidth: .infinity)
         }
-        .scrollEdgeEffectStyle(.soft, for: .top)
-        .safeAreaInset(edge: .bottom) { replyBar(to: parts.focal ?? initial) }
+        .environment(\.showsReplyContext, false)
+        .scrollEdgeEffectStyle(.soft, for: [.top, .bottom])
+        .safeAreaBar(edge: .bottom) { replyBar(to: parts.focal ?? initial) }
         .navigationTitle("Post")
-        .task(id: model.refreshToken) { await feed.loadIfNeeded(model) }
+        .onAppear { feed.loadIfNeeded(model) }
+        .onChange(of: model.refreshToken) { feed.loadIfNeeded(model) }
     }
 
     private func split() -> (ancestors: [FeedTweet], focal: XTweet?, replies: [FeedItem]) {
@@ -112,7 +107,7 @@ struct TweetDetailView: View {
             .padding(.leading, 10)
             .padding(.trailing, 6)
             .padding(.vertical, 6)
-            .glassEffect(.regular.interactive(), in: .rect(cornerRadius: 22))
+            .glassEffect(.regular.tint(.black.opacity(0.35)).interactive(), in: .rect(cornerRadius: 22))
             .frame(maxWidth: 600)
             .padding(.horizontal, 20)
             .padding(.bottom, 14)
@@ -147,7 +142,7 @@ struct ProfileView: View {
             if let user, let feed {
                 FeedView(feed: feed, emptyTitle: "No posts yet", emptySymbol: "text.bubble") {
                     ProfileHeader(user: user)
-                    Divider()
+                    Hairline()
                 }
             } else if let error {
                 ContentUnavailableView("Couldn't load @\(screenName)", systemImage: "person.crop.circle.badge.exclamationmark", description: Text(error))
@@ -184,7 +179,7 @@ struct ProfileHeader: View {
                 .aspectRatio(3, contentMode: .fit)
                 .overlay {
                     if let banner = user.bannerURL {
-                        AsyncImage(url: banner) { $0.resizable().scaledToFill() } placeholder: { Rectangle().fill(.quaternary) }
+                        AsyncImage(url: banner) { $0.resizable().scaledToFill() } placeholder: { Rectangle().fill(Color.xPlaceholder) }
                     } else {
                         LinearGradient(colors: [.xBlue.opacity(0.5), .purple.opacity(0.4)], startPoint: .topLeading, endPoint: .bottomTrailing)
                     }
@@ -196,7 +191,7 @@ struct ProfileHeader: View {
                 HStack(alignment: .bottom) {
                     Avatar(user: user, size: 112)
                         .padding(4)
-                        .background(Circle().fill(.background).opacity(user.hasSquareAvatar ? 0 : 1))
+                        .background(Circle().fill(Color.black).opacity(user.hasSquareAvatar ? 0 : 1))
                         .offset(y: -56)
                         .padding(.bottom, -56)
                     Spacer()
@@ -218,9 +213,9 @@ struct ProfileHeader: View {
                     HStack(spacing: 6) {
                         Text(user.name).font(.system(size: 22, weight: .bold))
                         VerifiedBadge(user: user, size: 18)
-                        if user.isProtected { Image(systemName: "lock.fill").foregroundStyle(.secondary) }
+                        if user.isProtected { Image(systemName: "lock.fill").foregroundStyle(Color.xGray) }
                     }
-                    Text("@\(user.screenName)").foregroundStyle(.secondary)
+                    Text("@\(user.screenName)").foregroundStyle(Color.xGray)
                 }
 
                 if !user.bio.isEmpty {
@@ -242,7 +237,7 @@ struct ProfileHeader: View {
                     if let joined = user.joined { Label("Joined \(joined.formatted(.dateTime.month(.wide).year()))", systemImage: "calendar") }
                 }
                 .font(.system(size: 14))
-                .foregroundStyle(.secondary)
+                .foregroundStyle(Color.xGray)
                 .lineLimit(1)
 
                 HStack(spacing: 18) {
@@ -258,7 +253,7 @@ struct ProfileHeader: View {
     private func stat(_ value: Int, _ label: String) -> some View {
         HStack(spacing: 4) {
             Text(value.compact).fontWeight(.semibold).monospacedDigit()
-            Text(label).foregroundStyle(.secondary)
+            Text(label).foregroundStyle(Color.xGray)
         }
         .font(.system(size: 14))
     }
@@ -297,70 +292,108 @@ struct SearchResultsView: View {
         FeedView(feed: FeedModel { [latest] client, cursor in try await client.search(query, latest: latest, cursor: cursor) },
                  emptyTitle: "No results for “\(query)”", emptySymbol: "magnifyingglass")
             .id("\(query)-\(latest)")
-            .navigationTitle(query)
-            .toolbar {
-                ToolbarItem(placement: .principal) {
-                    Picker("Sort", selection: $latest) {
-                        Text("Top").tag(false)
-                        Text("Latest").tag(true)
-                    }
-                    .pickerStyle(.segmented)
-                    .frame(width: 180)
-                }
+            .safeAreaBar(edge: .top) {
+                FeedTabs(selection: $latest, options: [(false, "Top"), (true, "Latest")])
             }
+            .navigationTitle(query)
     }
 }
 
 // MARK: - Notifications
 
 struct NotificationsView: View {
+    enum Tab: String { case all, priority, mentions }
     @Environment(AppModel.self) private var model
+    @AppStorage("notificationsTab") private var tab: Tab = .all
 
     var body: some View {
-        FeedView(feed: model.notificationsFeed, emptyTitle: "No notifications yet", emptySymbol: "bell")
+        FeedView(feed: feed, emptyTitle: tab == .mentions ? "No mentions yet" : "No notifications yet", emptySymbol: "bell")
+            .id(tab)
+            .safeAreaBar(edge: .top) {
+                FeedTabs(selection: $tab, options: [(.all, "All"), (.priority, "Priority"), (.mentions, "Mentions")])
+            }
             .navigationTitle("Notifications")
+    }
+
+    private var feed: FeedModel {
+        switch tab {
+        case .all: model.notificationsFeed
+        case .priority: model.priorityNotificationsFeed
+        case .mentions: model.mentionsFeed
+        }
     }
 }
 
+/// Mirrors x.com: icon column, avatar row, bold names + action + time, gray post text, media thumbnail.
 struct NotificationRow: View {
     var notification: XNotification
     @Environment(AppModel.self) private var model
-    @State private var hovering = false
 
     var body: some View {
         HStack(alignment: .top, spacing: 12) {
             Image(systemName: symbol.name)
-                .font(.system(size: 22))
+                .font(.system(size: 26))
                 .foregroundStyle(symbol.color)
-                .frame(width: 40)
-            VStack(alignment: .leading, spacing: 8) {
+                .frame(width: 40, height: 32, alignment: .trailing)
+
+            VStack(alignment: .leading, spacing: 12) {
                 if !notification.users.isEmpty {
-                    HStack(spacing: -6) {
-                        ForEach(notification.users.prefix(8)) { user in
-                            Avatar(user: user, size: 32)
-                                .overlay(Circle().stroke(.background, lineWidth: 2))
-                                .onTapGesture { model.open(.user(user.screenName)) }
-                        }
+                    AvatarStack(users: Array(notification.users.prefix(8))) { model.open(.user($0.screenName)) }
+                }
+                VStack(alignment: .leading, spacing: 2) {
+                    (Text(headline) + timeText)
+                        .font(.system(size: 15))
+                        .fixedSize(horizontal: false, vertical: true)
+                    if let text = notification.tweet?.text, !text.isEmpty {
+                        Text(text)
+                            .font(.system(size: 15))
+                            .foregroundStyle(Color.xGray)
+                            .lineLimit(3)
+                            .fixedSize(horizontal: false, vertical: true)
                     }
                 }
-                HStack(alignment: .firstTextBaseline) {
-                    Text(notification.message).font(.system(size: 15))
-                    Spacer()
-                    if let date = notification.date {
-                        Text(date.timelineLabel).font(.system(size: 13)).foregroundStyle(.secondary)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+
+            if let thumb = notification.tweet?.media.first {
+                Color.clear
+                    .frame(width: 64, height: 64)
+                    .overlay {
+                        AsyncImage(url: thumb.previewURL) { $0.resizable().scaledToFill() } placeholder: { Rectangle().fill(Color.xPlaceholder) }
                     }
-                }
-                if let preview = notification.tweetPreview, !preview.isEmpty {
-                    Text(preview).font(.system(size: 14)).foregroundStyle(.secondary).lineLimit(4)
-                }
+                    .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+                    .overlay(RoundedRectangle(cornerRadius: 8, style: .continuous).strokeBorder(Color.xLine, lineWidth: 1))
+                    .padding(.top, 44)
             }
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 12)
-        .background(hovering ? Color.primary.opacity(0.035) : .clear)
         .contentShape(Rectangle())
-        .onHover { hovering = $0 && notification.tweetID != nil }
-        .onTapGesture { if let id = notification.tweetID { model.open(.tweetID(id)) } }
+        .onTapGesture {
+            if let tweet = notification.tweet { model.open(.tweet(tweet)) }
+            else if let id = notification.tweetID { model.open(.tweetID(id)) }
+            else if let user = notification.users.first { model.open(.user(user.screenName)) }
+        }
+    }
+
+    private var headline: AttributedString {
+        var result = AttributedString(notification.message)
+        result.foregroundColor = Color(red: 231 / 255, green: 233 / 255, blue: 234 / 255)
+        // X's fromIndex/toIndex count Unicode scalars (code points).
+        let scalars = notification.message.unicodeScalars
+        for range in notification.boldRanges {
+            guard range.upperBound <= scalars.count else { continue }
+            let lower = scalars.index(scalars.startIndex, offsetBy: range.lowerBound)
+            let upper = scalars.index(scalars.startIndex, offsetBy: range.upperBound)
+            guard let attrRange = Range(lower..<upper, in: result) else { continue }
+            result[attrRange].font = .system(size: 15, weight: .bold)
+        }
+        return result
+    }
+
+    private var timeText: Text {
+        guard let date = notification.date else { return Text("") }
+        return Text(" · \(date.timelineLabel)").foregroundStyle(Color.xGray)
     }
 
     private var symbol: (name: String, color: Color) {
@@ -372,6 +405,7 @@ struct NotificationRow: View {
         if icon.contains("star") || icon.contains("bird") { return ("star.fill", .purple) }
         if icon.contains("security") || icon.contains("safety") { return ("lock.shield.fill", .orange) }
         if icon.contains("live") || icon.contains("space") { return ("waveform", .purple) }
+        if icon.contains("milestone") || icon.contains("trending") { return ("chart.line.uptrend.xyaxis", .xBlue) }
         return ("sparkles", .xBlue)
     }
 }

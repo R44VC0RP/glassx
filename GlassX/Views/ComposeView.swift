@@ -17,12 +17,12 @@ struct ComposeView: View {
                 HStack(alignment: .top, spacing: 12) {
                     VStack(spacing: 4) {
                         Avatar(user: reply.author, size: 40)
-                        Capsule().fill(.quaternary).frame(width: 2).frame(maxHeight: .infinity)
+                        Capsule().fill(Color.xLine).frame(width: 2).frame(maxHeight: .infinity)
                     }
                     VStack(alignment: .leading, spacing: 4) {
                         AuthorLine(user: reply.author, date: reply.createdAt)
                         TweetText(tweet: reply, size: 14, lineLimit: 6)
-                        Text("Replying to ").foregroundStyle(.secondary) + Text("@\(reply.author.screenName)").foregroundStyle(Color.xBlue)
+                        Text("Replying to ").foregroundStyle(Color.xGray) + Text("@\(reply.author.screenName)").foregroundStyle(Color.xBlue)
                     }
                     .font(.system(size: 13))
                     .padding(.bottom, 12)
@@ -93,7 +93,7 @@ private struct CharacterRing: View {
         let progress = min(Double(count) / Double(limit), 1)
         let remaining = limit - count
         ZStack {
-            Circle().stroke(.quaternary, lineWidth: 2.5)
+            Circle().stroke(Color.xLine, lineWidth: 2.5)
             Circle()
                 .trim(from: 0, to: progress)
                 .stroke(remaining < 0 ? Color.red : remaining <= 20 ? .orange : .xBlue, style: StrokeStyle(lineWidth: 2.5, lineCap: .round))

@@ -15,6 +15,16 @@ enum Section: String, CaseIterable, Identifiable, Hashable {
         }
     }
 
+    var selectedSymbol: String {
+        switch self {
+        case .home: "house.fill"
+        case .search: "magnifyingglass"
+        case .notifications: "bell.fill"
+        case .bookmarks: "bookmark.fill"
+        case .profile: "person.crop.circle.fill"
+        }
+    }
+
     var symbol: String {
         switch self {
         case .home: "house"
@@ -64,7 +74,9 @@ final class AppModel {
 
     let forYouFeed = FeedModel { client, cursor in try await client.homeTimeline(following: false, cursor: cursor) }
     let followingFeed = FeedModel { client, cursor in try await client.homeTimeline(following: true, cursor: cursor) }
-    let notificationsFeed = FeedModel { client, cursor in try await client.notifications(cursor: cursor) }
+    let notificationsFeed = FeedModel { client, cursor in try await client.notifications(type: "All", cursor: cursor) }
+    let priorityNotificationsFeed = FeedModel { client, cursor in try await client.notifications(type: "Priority", cursor: cursor) }
+    let mentionsFeed = FeedModel { client, cursor in try await client.notifications(type: "Mentions", cursor: cursor) }
     let bookmarksFeed = FeedModel { client, cursor in try await client.bookmarks(cursor: cursor) }
 
     init() {
@@ -82,8 +94,8 @@ final class AppModel {
         }
     }
 
-    var path: Binding<[Route]> {
-        Binding(get: { self.paths[self.section] ?? [] }, set: { self.paths[self.section] = $0 })
+    func path(for section: Section) -> Binding<[Route]> {
+        Binding(get: { self.paths[section] ?? [] }, set: { self.paths[section] = $0 })
     }
 
     func open(_ route: Route) {
@@ -140,7 +152,7 @@ final class AppModel {
         viewer = nil
         paths = [:]
         engagement = [:]
-        for feed in [forYouFeed, followingFeed, notificationsFeed, bookmarksFeed] { feed.reset() }
+        for feed in [forYouFeed, followingFeed, notificationsFeed, priorityNotificationsFeed, mentionsFeed, bookmarksFeed] { feed.reset() }
         section = .home
         phase = .signedOut
         banner = message

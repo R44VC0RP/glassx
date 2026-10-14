@@ -12,6 +12,9 @@ struct LoginWebView: NSViewRepresentable {
     func makeNSView(context: Context) -> WKWebView {
         let configuration = WKWebViewConfiguration()
         configuration.websiteDataStore = .nonPersistent()
+        // x.com draws a permanent scrollbar gutter on the right, which makes the page look off-center.
+        let hideScrollbars = "const s=document.createElement('style');s.textContent='html,body{scrollbar-width:none!important}::-webkit-scrollbar{display:none!important}';document.documentElement.appendChild(s);"
+        configuration.userContentController.addUserScript(WKUserScript(source: hideScrollbars, injectionTime: .atDocumentEnd, forMainFrameOnly: false))
         let webView = WKWebView(frame: .zero, configuration: configuration)
         webView.customUserAgent = XClient.userAgent
         webView.navigationDelegate = context.coordinator

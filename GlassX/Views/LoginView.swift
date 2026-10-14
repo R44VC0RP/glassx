@@ -60,8 +60,8 @@ struct LoginView: View {
                     model.signIn(with: cookies)
                 }, isLoading: $webLoading)
                 .frame(width: 520, height: 700)
-                .navigationTitle("Sign in to X")
                 .toolbar {
+                    ToolbarItem(placement: .principal) { Text("Sign in to X").font(.headline) }
                     ToolbarItem(placement: .cancellationAction) { Button("Cancel") { showingSignIn = false } }
                     if webLoading {
                         ToolbarItem(placement: .status) { ProgressView().controlSize(.small) }

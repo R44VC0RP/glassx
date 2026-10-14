@@ -16,15 +16,20 @@ struct MediaGrid: View {
         let shape = RoundedRectangle(cornerRadius: 16, style: .continuous)
         Group {
             if media.count == 1, let item = media.first {
+                // Cap the width so tall images stop at maxHeight and the frame hugs the image.
+                let ratio = max(item.aspectRatio, 0.75)
                 cell(item, index: 0)
-                    .aspectRatio(max(item.aspectRatio, 0.75), contentMode: .fit)
-                    .frame(maxHeight: maxHeight, alignment: .leading)
+                    .aspectRatio(ratio, contentMode: .fit)
+                    .frame(maxWidth: maxHeight * ratio)
+                    .clipShape(shape)
+                    .overlay(shape.strokeBorder(Color.xLine, lineWidth: 1))
             } else {
-                grid.aspectRatio(16 / 9, contentMode: .fit)
+                grid
+                    .aspectRatio(16 / 9, contentMode: .fit)
+                    .clipShape(shape)
+                    .overlay(shape.strokeBorder(Color.xLine, lineWidth: 1))
             }
         }
-        .clipShape(shape)
-        .overlay(shape.strokeBorder(.primary.opacity(0.1), lineWidth: 0.5))
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 
@@ -55,7 +60,7 @@ struct MediaGrid: View {
                     AsyncImage(url: item.previewURL) { image in
                         image.resizable().scaledToFill()
                     } placeholder: {
-                        Rectangle().fill(.quaternary)
+                        Rectangle().fill(Color.xPlaceholder)
                     }
                 }
                 .clipped()
@@ -76,14 +81,14 @@ private struct VideoBadge: View {
                 .font(.system(size: 22, weight: .semibold))
                 .foregroundStyle(.white)
                 .frame(width: 56, height: 56)
-                .glassEffect(.clear.interactive(), in: .circle)
+                .glassEffect(.regular.tint(.black.opacity(0.45)).interactive(), in: .circle)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             Text(label)
                 .font(.caption.weight(.semibold).monospacedDigit())
                 .foregroundStyle(.white)
                 .padding(.horizontal, 8)
                 .padding(.vertical, 3)
-                .glassEffect(.clear, in: .capsule)
+                .glassEffect(.regular.tint(.black.opacity(0.45)), in: .capsule)
                 .padding(10)
         }
     }
@@ -109,19 +114,19 @@ struct LinkCardView: View {
                     Color.clear
                         .aspectRatio(1.91, contentMode: .fit)
                         .overlay {
-                            AsyncImage(url: image) { $0.resizable().scaledToFill() } placeholder: { Rectangle().fill(.quaternary) }
+                            AsyncImage(url: image) { $0.resizable().scaledToFill() } placeholder: { Rectangle().fill(Color.xPlaceholder) }
                         }
                         .clipped()
                 }
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(card.domain).font(.caption).foregroundStyle(.secondary)
+                    Text(card.domain).font(.caption).foregroundStyle(Color.xGray)
                     Text(card.title).font(.system(size: 14)).lineLimit(2)
                 }
                 .padding(12)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .clipShape(shape)
-            .overlay(shape.strokeBorder(.primary.opacity(0.12), lineWidth: 0.5))
+            .overlay(shape.strokeBorder(Color.xLine, lineWidth: 1))
             .contentShape(shape)
         }
         .buttonStyle(.plain)

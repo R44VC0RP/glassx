@@ -3,9 +3,10 @@ import SwiftUI
 struct TweetRow: View {
     var item: FeedTweet
     @Environment(AppModel.self) private var model
-    @State private var hovering = false
+    @Environment(\.showsReplyContext) private var showsReplyContext
 
     private var tweet: XTweet { item.tweet }
+    private var topPadding: CGFloat { item.connectsAbove ? 4 : 12 }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
@@ -17,19 +18,19 @@ struct TweetRow: View {
             }
 
             HStack(alignment: .top, spacing: 12) {
-                VStack(spacing: 4) {
+                VStack(spacing: 2) {
                     Avatar(user: tweet.author, size: 40)
                         .onTapGesture { model.open(.user(tweet.author.screenName)) }
                         .pointerStyle(.link)
                     if item.connectsBelow {
-                        Capsule().fill(.quaternary).frame(width: 2).frame(maxHeight: .infinity)
+                        Capsule().fill(Color.xLine).frame(width: 2).frame(maxHeight: .infinity)
                     }
                 }
                 .frame(width: 40)
 
                 VStack(alignment: .leading, spacing: 6) {
                     AuthorLine(user: tweet.author, date: tweet.createdAt)
-                    if !tweet.replyingTo.isEmpty, !item.connectsAbove {
+                    if showsReplyContext, !tweet.replyingTo.isEmpty, !item.connectsAbove {
                         ReplyingToLabel(names: tweet.replyingTo)
                     }
                     if !tweet.text.isEmpty { TweetText(tweet: tweet) }
@@ -41,11 +42,15 @@ struct TweetRow: View {
             }
         }
         .padding(.horizontal, 16)
-        .padding(.top, item.connectsAbove ? 4 : 12)
+        .padding(.top, topPadding)
         .padding(.bottom, item.connectsBelow ? 0 : 6)
-        .background(hovering ? Color.primary.opacity(0.035) : .clear)
+        .overlay(alignment: .topLeading) {
+            // Continue the thread line from the previous post down to this avatar.
+            if item.connectsAbove {
+                Rectangle().fill(Color.xLine).frame(width: 2, height: topPadding - 2).offset(x: 16 + 19)
+            }
+        }
         .contentShape(Rectangle())
-        .onHover { hovering = $0 }
         .onTapGesture { model.open(.tweet(tweet)) }
         .contextMenu { TweetMenu(tweet: tweet) }
         .accessibilityElement(children: .contain)
@@ -56,7 +61,7 @@ struct TweetRow: View {
             Image(systemName: symbol).font(.system(size: 12, weight: .bold)).frame(width: 40, alignment: .trailing)
             Text(text).font(.system(size: 13, weight: .semibold)).lineLimit(1)
         }
-        .foregroundStyle(.secondary)
+        .foregroundStyle(Color.xGray)
     }
 }
 
@@ -66,7 +71,7 @@ struct ReplyingToLabel: View {
 
     var body: some View {
         HStack(spacing: 3) {
-            Text("Replying to").foregroundStyle(.secondary)
+            Text("Replying to").foregroundStyle(Color.xGray)
             ForEach(names, id: \.self) { name in
                 Button("@\(name)") { model.open(.user(name)) }
                     .buttonStyle(.plain)
@@ -104,7 +109,7 @@ struct EngagementBar: View {
                     if let views = tweet.viewCount { Text(views.compact).monospacedDigit() }
                 }
                 .font(.system(size: 13))
-                .foregroundStyle(.secondary)
+                .foregroundStyle(Color.xGray)
                 .accessibilityLabel("\(tweet.viewCount ?? 0) views")
                 Spacer(minLength: 0)
             }
@@ -116,7 +121,7 @@ struct EngagementBar: View {
                     Image(systemName: "square.and.arrow.up")
                         .font(.system(size: 13))
                         .frame(width: 30, height: 30)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(Color.xGray)
                 }
                 .buttonStyle(.plain)
             }
@@ -141,7 +146,7 @@ struct QuoteCard: View {
         }
         .padding(12)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .overlay(shape.strokeBorder(.primary.opacity(0.12), lineWidth: 0.5))
+        .overlay(shape.strokeBorder(Color.xLine, lineWidth: 1))
         .contentShape(shape)
         .onTapGesture { model.open(.tweet(tweet)) }
     }
@@ -183,7 +188,7 @@ struct FocalTweet: View {
                         Text(tweet.author.name).font(.system(size: 15, weight: .semibold))
                         VerifiedBadge(user: tweet.author, size: 15)
                     }
-                    Text("@\(tweet.author.screenName)").font(.system(size: 14)).foregroundStyle(.secondary)
+                    Text("@\(tweet.author.screenName)").font(.system(size: 14)).foregroundStyle(Color.xGray)
                 }
                 .contentShape(Rectangle())
                 .onTapGesture { model.open(.user(tweet.author.screenName)) }
@@ -208,11 +213,11 @@ struct FocalTweet: View {
                 }
             }
             .font(.system(size: 14))
-            .foregroundStyle(.secondary)
+            .foregroundStyle(Color.xGray)
 
-            Divider()
+            Hairline()
             EngagementBar(tweet: tweet, showViews: false)
-            Divider()
+            Hairline()
         }
         .padding(.horizontal, 16)
         .padding(.top, connectsAbove ? 4 : 12)

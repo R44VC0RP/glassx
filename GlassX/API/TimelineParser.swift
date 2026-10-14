@@ -315,38 +315,57 @@ enum TimelineParser {
     // MARK: Notifications
 
     static func notification(from content: JSON, fallbackID: String) -> XNotification? {
-        let message = ((content["rich_message"] as? JSON)?["text"] as? String)
-            ?? ((content["message"] as? JSON)?["text"] as? String)
-        guard let message else { return nil }
+        let rich = (content["rich_message"] as? JSON) ?? (content["message"] as? JSON)
+        guard let message = rich?["text"] as? String else { return nil }
 
-        let template = (content["template"] as? JSON)?["aggregateUserActionsV1"] as? JSON
-        let users = (template?["fromUsers"] as? [JSON] ?? []).compactMap { item -> XUser? in
-            ((item["user_results"] as? JSON)?["result"] as? JSON).flatMap(user(from:))
-        }
-        var tweetPreview: String?
-        var tweetID: String?
-        for target in template?["targetObjects"] as? [JSON] ?? [] {
-            if let result = (target["tweet_results"] as? JSON)?["result"] as? JSON, let tweet = tweet(from: result, includeQuote: false) {
-                tweetPreview = tweet.text
-                tweetID = tweet.id
+        // Current shape: template.from_users / target_objects. Older: template.aggregateUserActionsV1.fromUsers / targetObjects.
+        let template = content["template"] as? JSON
+        let aggregate = (template?["aggregateUserActionsV1"] as? JSON) ?? template
+        let userRefs = (aggregate?["from_users"] as? [JSON]) ?? (aggregate?["fromUsers"] as? [JSON]) ?? []
+        let users = userRefs.compactMap { ((($0["user_results"] as? JSON)?["result"]) as? JSON).flatMap(user(from:)) }
+
+        var tweet: XTweet?
+        let targets = (aggregate?["target_objects"] as? [JSON]) ?? (aggregate?["targetObjects"] as? [JSON]) ?? []
+        for target in targets {
+            if let result = (target["tweet_results"] as? JSON)?["result"] as? JSON, let parsed = Self.tweet(from: result, includeQuote: false) {
+                tweet = parsed
                 break
             }
         }
+        var tweetID = tweet?.id
         if tweetID == nil, let url = (content["notification_url"] as? JSON)?["url"] as? String,
            let match = url.range(of: #"status/(\d+)"#, options: .regularExpression) {
             tweetID = String(url[match].dropFirst("status/".count))
         }
-        let timestamp = (content["timestamp_ms"] as? String).flatMap(Double.init)
-        let iconID = ((content["notification_icon"] as? String) ?? "").lowercased()
+
+        let bold = (rich?["entities"] as? [JSON] ?? []).compactMap { entity -> Range<Int>? in
+            guard let from = entity["fromIndex"] as? Int, let to = entity["toIndex"] as? Int, from < to else { return nil }
+            return from..<to
+        }
+
+        var date: Date?
+        if let raw = content["timestamp_ms"] as? String {
+            date = Double(raw).map { Date(timeIntervalSince1970: $0 / 1000) } ?? isoDate(raw)
+        } else if let raw = content["timestamp_ms"] as? Double {
+            date = Date(timeIntervalSince1970: raw / 1000)
+        }
+
         return XNotification(
             id: content["id"] as? String ?? fallbackID,
-            icon: iconID,
+            icon: ((content["notification_icon"] as? String) ?? "").lowercased(),
             message: message,
+            boldRanges: bold,
             users: users,
-            date: timestamp.map { Date(timeIntervalSince1970: $0 / 1000) },
-            tweetPreview: tweetPreview,
+            date: date,
+            tweet: tweet,
             tweetID: tweetID
         )
+    }
+
+    private static func isoDate(_ string: String) -> Date? {
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        return formatter.date(from: string) ?? ISO8601DateFormatter().date(from: string)
     }
 
     // MARK: Helpers

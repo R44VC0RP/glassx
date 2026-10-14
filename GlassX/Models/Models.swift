@@ -94,9 +94,11 @@ struct XNotification: Identifiable, Hashable, Sendable {
     var id: String
     var icon: String
     var message: String
+    /// Unicode-scalar ranges in `message` that X renders bold (the people's names).
+    var boldRanges: [Range<Int>] = []
     var users: [XUser]
     var date: Date?
-    var tweetPreview: String?
+    var tweet: XTweet?
     var tweetID: String?
 }
 

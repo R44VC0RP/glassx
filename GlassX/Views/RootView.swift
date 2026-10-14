@@ -12,6 +12,8 @@ struct RootView: View {
             }
         }
         .tint(.xBlue)
+        .preferredColorScheme(.dark)
+        .containerBackground(Color.black, for: .window)
         .environment(\.openURL, OpenURLAction { url in
             guard url.scheme == "glassx" else { return .systemAction }
             switch url.host() {
@@ -31,20 +33,25 @@ struct MainView: View {
 
     var body: some View {
         @Bindable var model = model
-        NavigationSplitView {
-            Sidebar()
-                .navigationSplitViewColumnWidth(min: 200, ideal: 240, max: 300)
-        } detail: {
-            NavigationStack(path: model.path) {
-                sectionRoot
-                    .navigationDestination(for: Route.self) { RouteView(route: $0).toolbar { sharedToolbar } }
-                    .toolbar { sharedToolbar }
+        // System tab bar in the toolbar: Apple's recommended top-level navigation without a sidebar.
+        TabView(selection: $model.section) {
+            ForEach(Section.allCases) { section in
+                Tab(section.title, systemImage: section.symbol, value: section) {
+                    NavigationStack(path: model.path(for: section)) {
+                        root(for: section)
+                            .navigationDestination(for: Route.self) { RouteView(route: $0).toolbar { sharedToolbar } }
+                            .toolbar { sharedToolbar }
+                    }
+                    .background(Color.black)
+                    .toolbarBackgroundVisibility(.hidden, for: .windowToolbar)
+                }
             }
-            .id(model.section)
         }
+        .tabViewStyle(.tabBarOnly)
         .overlay(alignment: .top) {
             if let banner = model.banner {
                 GlassBanner(text: banner) { withAnimation { model.banner = nil } }
+                    .padding(.top, 52)
                     .transition(.move(edge: .top).combined(with: .opacity))
                     .task(id: banner) {
                         try? await Task.sleep(for: .seconds(6))
@@ -58,8 +65,8 @@ struct MainView: View {
         }
     }
 
-    @ViewBuilder private var sectionRoot: some View {
-        switch model.section {
+    @ViewBuilder private func root(for section: Section) -> some View {
+        switch section {
         case .home: HomeView()
         case .search: ExploreView()
         case .notifications: NotificationsView()
@@ -72,75 +79,37 @@ struct MainView: View {
     @ToolbarContentBuilder private var sharedToolbar: some ToolbarContent {
         ToolbarItem(placement: .primaryAction) {
             Button("Refresh", systemImage: "arrow.clockwise") { model.refreshToken = UUID() }
-                .keyboardShortcut("r")
         }
         ToolbarSpacer(.fixed, placement: .primaryAction)
         ToolbarItem(placement: .primaryAction) {
             Button("New Post", systemImage: "square.and.pencil") { model.compose = ComposeTarget() }
                 .buttonStyle(.glassProminent)
         }
+        ToolbarSpacer(.fixed, placement: .primaryAction)
+        ToolbarItem(placement: .primaryAction) { AccountMenu() }
     }
 }
 
-struct Sidebar: View {
-    @Environment(AppModel.self) private var model
-
-    var body: some View {
-        @Bindable var model = model
-        List(selection: Binding(get: { model.section }, set: { if let s = $0 { model.section = s } })) {
-            ForEach(Section.allCases) { section in
-                Label(section.title, systemImage: section.symbol)
-                    .tag(section)
-            }
-        }
-        .safeAreaInset(edge: .bottom) {
-            VStack(spacing: 12) {
-                Button {
-                    model.compose = ComposeTarget()
-                } label: {
-                    Label("Post", systemImage: "square.and.pencil")
-                        .font(.headline)
-                        .frame(maxWidth: .infinity)
-                }
-                .buttonStyle(.glassProminent)
-                .controlSize(.large)
-
-                AccountRow()
-            }
-            .padding(12)
-        }
-    }
-}
-
-private struct AccountRow: View {
+/// The signed-in account, as a toolbar menu.
+private struct AccountMenu: View {
     @Environment(AppModel.self) private var model
 
     var body: some View {
         Menu {
             if let viewer = model.viewer {
-                Button("View Profile", systemImage: "person") { model.section = .profile }
-                Button("Open on x.com", systemImage: "safari") {
-                    NSWorkspace.shared.open(URL(string: "https://x.com/\(viewer.screenName)")!)
+                SwiftUI.Section("\(viewer.name) · @\(viewer.screenName)") {
+                    Button("View Profile", systemImage: "person") { model.section = .profile }
+                    Button("Open on x.com", systemImage: "safari") {
+                        NSWorkspace.shared.open(URL(string: "https://x.com/\(viewer.screenName)")!)
+                    }
                 }
-                Divider()
             }
             Button("Sign Out", systemImage: "rectangle.portrait.and.arrow.right", role: .destructive) { model.signOut() }
         } label: {
-            HStack(spacing: 10) {
-                Avatar(user: model.viewer, size: 32)
-                VStack(alignment: .leading, spacing: 0) {
-                    Text(model.viewer?.name ?? "Loading…").font(.callout.weight(.semibold)).lineLimit(1)
-                    Text(model.viewer.map { "@\($0.screenName)" } ?? " ").font(.caption).foregroundStyle(.secondary).lineLimit(1)
-                }
-                Spacer(minLength: 0)
-                Image(systemName: "ellipsis").foregroundStyle(.secondary)
-            }
-            .padding(8)
-            .contentShape(Rectangle())
+            Avatar(user: model.viewer, size: 24)
         }
-        .menuStyle(.button)
-        .buttonStyle(.plain)
         .menuIndicator(.hidden)
-        .glassEffect(.regular.interactive(), in: .rect(cornerRadius: 14))
+        .help("Account")
+        .accessibilityLabel("Account")
     }
 }
