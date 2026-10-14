@@ -175,9 +175,12 @@ final class FeedModel {
 }
 
 struct FeedView<Header: View>: View {
+    enum Layout { case list, mediaGrid }
+
     var feed: FeedModel
     var emptyTitle = "Nothing here yet"
     var emptySymbol = "text.bubble"
+    var layout: Layout = .list
     @ViewBuilder var header: Header
     @Environment(AppModel.self) private var model
     @Environment(\.scenePhase) private var scenePhase
@@ -196,7 +199,10 @@ struct FeedView<Header: View>: View {
         ScrollView {
             LazyVStack(spacing: 0) {
                 header
-                ForEach(feed.items) { item in
+                if layout == .mediaGrid {
+                    MediaGridView(items: feed.items, onReachEnd: { Task { await feed.loadMore(model) } })
+                } else {
+                ForEach(feed.items.filter { !model.isDeleted($0) }) { item in
                     VStack(spacing: 0) {
                         FeedItemView(item: item)
                             .overlay(alignment: .leading) {
@@ -210,6 +216,7 @@ struct FeedView<Header: View>: View {
                     .onAppear {
                         if item.id == feed.prefetchThresholdID { Task { await feed.loadMore(model) } }
                     }
+                }
                 }
                 footer
             }
@@ -327,6 +334,7 @@ struct FeedView<Header: View>: View {
         default:
             guard let tweet = selectedTweet else { return .ignored }
             switch press.characters.lowercased() {
+            case "q": model.compose = ComposeTarget(quote: tweet)
             case "l": model.toggleLike(tweet)
             case "r": model.compose = ComposeTarget(replyTo: tweet)
             case "t": model.toggleRepost(tweet)
@@ -431,7 +439,65 @@ private struct NewPostsPill: View {
 
 extension FeedView where Header == EmptyView {
     init(feed: FeedModel, emptyTitle: String = "Nothing here yet", emptySymbol: String = "text.bubble") {
-        self.init(feed: feed, emptyTitle: emptyTitle, emptySymbol: emptySymbol) { EmptyView() }
+        self.init(feed: feed, emptyTitle: emptyTitle, emptySymbol: emptySymbol, layout: .list) { EmptyView() }
+    }
+}
+
+/// Profile Media tab: a 3-column grid of each post's first photo or video, like x.com.
+struct MediaGridView: View {
+    var items: [FeedItem]
+    var onReachEnd: () -> Void
+    @Environment(AppModel.self) private var model
+
+    private var tweets: [XTweet] {
+        var seen = Set<String>()
+        return items.compactMap { item -> XTweet? in
+            guard case .tweet(let feedTweet) = item, !feedTweet.tweet.media.isEmpty,
+                  seen.insert(feedTweet.tweet.id).inserted else { return nil }
+            return feedTweet.tweet
+        }
+    }
+
+    var body: some View {
+        let tweets = tweets
+        LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 3), count: 3), spacing: 3) {
+            ForEach(tweets) { tweet in
+                MediaGridCell(tweet: tweet)
+                    .onAppear { if tweet.id == tweets.last?.id { onReachEnd() } }
+            }
+        }
+        .padding(.top, 3)
+    }
+}
+
+private struct MediaGridCell: View {
+    var tweet: XTweet
+    @Environment(AppModel.self) private var model
+    @State private var hovering = false
+
+    var body: some View {
+        let media = tweet.media[0]
+        Button { model.open(.tweet(tweet)) } label: {
+            Color.clear
+                .aspectRatio(1, contentMode: .fit)
+                .overlay { RemoteImage(url: media.previewURL, maxPixel: 600) }
+                .clipped()
+                .overlay(alignment: .topTrailing) {
+                    if media.kind != .photo || tweet.media.count > 1 {
+                        Image(systemName: media.kind == .photo ? "square.on.square.fill" : "play.fill")
+                            .font(.system(size: 11, weight: .bold))
+                            .foregroundStyle(.white)
+                            .shadow(color: .black.opacity(0.6), radius: 3)
+                            .padding(7)
+                    }
+                }
+                .overlay { Color.white.opacity(hovering ? 0.08 : 0) }
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .onHover { hovering = $0 }
+        .contextMenu { TweetMenu(tweet: tweet) }
+        .accessibilityLabel(media.altText ?? "Media post by @\(tweet.author.screenName)")
     }
 }
 

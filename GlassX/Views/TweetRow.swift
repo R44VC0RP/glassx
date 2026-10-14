@@ -95,9 +95,7 @@ struct EngagementBar: View {
                 model.compose = ComposeTarget(replyTo: tweet)
             }
             Spacer(minLength: 0)
-            EngagementButton(symbol: "arrow.2.squarepath", count: state.repostCount, isActive: state.reposted, activeColor: .xGreen, label: state.reposted ? "Undo repost" : "Repost") {
-                model.toggleRepost(tweet)
-            }
+            RepostMenuButton(tweet: tweet, state: state)
             Spacer(minLength: 0)
             EngagementButton(symbol: "heart", activeSymbol: "heart.fill", count: state.likeCount, isActive: state.liked, activeColor: .xPink, label: state.liked ? "Unlike" : "Like") {
                 model.toggleLike(tweet)
@@ -152,14 +150,57 @@ struct QuoteCard: View {
     }
 }
 
+/// X's repost button: a small menu with Repost (or Undo repost) and Quote.
+struct RepostMenuButton: View {
+    var tweet: XTweet
+    var state: EngagementState
+    @Environment(AppModel.self) private var model
+    @State private var hovering = false
+
+    var body: some View {
+        Menu {
+            Button(state.reposted ? "Undo repost" : "Repost", systemImage: "arrow.2.squarepath") { model.toggleRepost(tweet) }
+            Button("Quote", systemImage: "pencil.line") { model.compose = ComposeTarget(quote: tweet) }
+        } label: {
+            HStack(spacing: 5) {
+                Image(systemName: "arrow.2.squarepath")
+                    .symbolEffect(.bounce, value: state.reposted)
+                    .frame(width: 30, height: 30)
+                    .background(Circle().fill(Color.xGreen.opacity(hovering ? 0.14 : 0)))
+                if state.repostCount > 0 {
+                    Text(state.repostCount.compact)
+                        .contentTransition(.numericText(value: Double(state.repostCount)))
+                        .monospacedDigit()
+                }
+            }
+            .font(.system(size: 13))
+            .foregroundStyle(state.reposted || hovering ? Color.xGreen : Color.xGray)
+            .contentShape(Rectangle())
+        }
+        .menuStyle(.button)
+        .buttonStyle(.plain)
+        .menuIndicator(.hidden)
+        .fixedSize()
+        .onHover { hovering = $0 }
+        .animation(.snappy(duration: 0.2), value: hovering)
+        .accessibilityLabel(state.reposted ? "Undo repost or quote" : "Repost or quote")
+    }
+}
+
 struct TweetMenu: View {
     var tweet: XTweet
     @Environment(AppModel.self) private var model
     @Environment(\.openURL) private var openURL
+    @State private var confirmingDelete = false
+
+    private var isMine: Bool { model.viewer?.id == tweet.author.id }
 
     var body: some View {
         Button("Reply", systemImage: "bubble.left") { model.compose = ComposeTarget(replyTo: tweet) }
-        Button("View @\(tweet.author.screenName)", systemImage: "person") { model.open(.user(tweet.author.screenName)) }
+        Button("Quote", systemImage: "pencil.line") { model.compose = ComposeTarget(quote: tweet) }
+        if !isMine {
+            Button("View @\(tweet.author.screenName)", systemImage: "person") { model.open(.user(tweet.author.screenName)) }
+        }
         Divider()
         Button("Copy Link", systemImage: "link") {
             NSPasteboard.general.clearContents()
@@ -169,7 +210,15 @@ struct TweetMenu: View {
             NSPasteboard.general.clearContents()
             NSPasteboard.general.setString(tweet.text, forType: .string)
         }
+        Button("Copy as Image", systemImage: "photo") { model.copyAsImage(tweet) }
         Button("Open on x.com", systemImage: "safari") { openURL(tweet.url) }
+        if isMine {
+            Divider()
+            Button(model.isPinned(tweet) ? "Unpin from Profile" : "Pin to Profile", systemImage: model.isPinned(tweet) ? "pin.slash" : "pin") {
+                model.togglePin(tweet)
+            }
+            Button("Delete Post…", systemImage: "trash", role: .destructive) { model.confirmDelete = tweet }
+        }
     }
 }
 

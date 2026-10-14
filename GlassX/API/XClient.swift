@@ -184,6 +184,10 @@ actor XClient {
 
             let path = "/i/api/graphql/\(op.queryId)/\(operation)"
             let isPOST = usePOST ?? (op.type == "mutation")
+            if Self.dryRun, op.type == "mutation", operation != "CreateTweet" {
+                log.notice("DRY RUN \(operation, privacy: .public) \(JSONValue.object(variables).encodedString(), privacy: .public)")
+                return ["data": [String: Any]()]
+            }
             let request: URLRequest
             if isPOST {
                 var body: [String: JSONValue] = ["variables": .object(variables), "queryId": .string(op.queryId)]
@@ -239,6 +243,25 @@ actor XClient {
         return json
     }
 
+    /// v1.1 REST POST with a form body (follow, mute, block use these on x.com).
+    func restPost(_ path: String, form: [String: String]) async throws -> Any {
+        if Self.dryRun {
+            log.notice("DRY RUN POST \(path, privacy: .public) \(form.description, privacy: .public)")
+            return [String: Any]()
+        }
+        var components = URLComponents()
+        components.queryItems = form.map { URLQueryItem(name: $0.key, value: $0.value) }
+        let url = URL(string: "https://x.com\(path)")!
+        var request = apiRequest(url: url, method: "POST", body: Data((components.percentEncodedQuery ?? "").utf8),
+                                 transactionPath: url.path(), generator: catalog?.transactionGenerator)
+        request.setValue("application/x-www-form-urlencoded", forHTTPHeaderField: "Content-Type")
+        let (json, status) = try await perform(request)
+        guard (200..<300).contains(status) else {
+            throw XError.http(status, Self.errorMessages(json).first ?? ((json as? [String: Any])?["__message"] as? String ?? ""))
+        }
+        return json
+    }
+
     // MARK: - Endpoints
 
     func viewer() async throws -> XUser {
@@ -286,6 +309,52 @@ actor XClient {
         ]
         if let cursor { variables["cursor"] = .string(cursor) }
         return TimelineParser.page(from: try await graphQL("UserTweets", variables: variables))
+    }
+
+    func userReplies(userID: String, cursor: String?) async throws -> FeedPage {
+        var variables: [String: JSONValue] = [
+            "userId": .string(userID), "count": 20, "includePromotedContent": false, "withCommunity": true, "withVoice": true,
+        ]
+        if let cursor { variables["cursor"] = .string(cursor) }
+        return TimelineParser.page(from: try await graphQL("UserTweetsAndReplies", variables: variables))
+    }
+
+    func userMedia(userID: String, cursor: String?) async throws -> FeedPage {
+        var variables: [String: JSONValue] = [
+            "userId": .string(userID), "count": 20, "includePromotedContent": false,
+            "withClientEventToken": false, "withBirdwatchNotes": false, "withVoice": true,
+        ]
+        if let cursor { variables["cursor"] = .string(cursor) }
+        return TimelineParser.page(from: try await graphQL("UserMedia", variables: variables))
+    }
+
+    func likes(userID: String, cursor: String?) async throws -> FeedPage {
+        var variables: [String: JSONValue] = [
+            "userId": .string(userID), "count": 20, "includePromotedContent": false,
+            "withClientEventToken": false, "withBirdwatchNotes": false, "withVoice": true,
+        ]
+        if let cursor { variables["cursor"] = .string(cursor) }
+        return TimelineParser.page(from: try await graphQL("Likes", variables: variables))
+    }
+
+    func deleteTweet(id: String) async throws {
+        _ = try await graphQL("DeleteTweet", variables: ["tweet_id": .string(id), "dark_request": false])
+    }
+
+    func setPinned(_ pinned: Bool, tweetID: String) async throws {
+        _ = try await graphQL(pinned ? "PinTweet" : "UnpinTweet", variables: ["tweet_id": .string(tweetID)])
+    }
+
+    func setFollowing(_ follow: Bool, userID: String) async throws {
+        _ = try await restPost(follow ? "/i/api/1.1/friendships/create.json" : "/i/api/1.1/friendships/destroy.json", form: ["user_id": userID])
+    }
+
+    func setMuted(_ muted: Bool, userID: String) async throws {
+        _ = try await restPost(muted ? "/i/api/1.1/mutes/users/create.json" : "/i/api/1.1/mutes/users/destroy.json", form: ["user_id": userID])
+    }
+
+    func setBlocked(_ blocked: Bool, userID: String) async throws {
+        _ = try await restPost(blocked ? "/i/api/1.1/blocks/create.json" : "/i/api/1.1/blocks/destroy.json", form: ["user_id": userID])
     }
 
     func search(_ query: String, latest: Bool, cursor: String?) async throws -> FeedPage {
@@ -405,12 +474,16 @@ actor XClient {
         return (try? JSONSerialization.jsonObject(with: data) as? [String: Any]) ?? [:]
     }
 
+    nonisolated(unsafe) private static var dryRunCounter = 0
+
+    /// Creates a post and returns its ID (needed to chain thread replies).
     @discardableResult
-    func post(text: String, replyTo: String?, mediaIDs: [String] = []) async throws -> XTweet? {
+    func post(text: String, replyTo: String?, mediaIDs: [String] = [], quoteURL: URL? = nil) async throws -> String {
         if Self.dryRun {
             try? await Task.sleep(for: .seconds(1.1))   // feels like a real round trip
-            log.notice("DRY RUN post \"\(text, privacy: .public)\" media=\(mediaIDs.count) reply=\(replyTo ?? "-", privacy: .public)")
-            return nil
+            Self.dryRunCounter += 1
+            log.notice("DRY RUN post \"\(text, privacy: .public)\" media=\(mediaIDs.count) reply=\(replyTo ?? "-", privacy: .public) quote=\(quoteURL?.absoluteString ?? "-", privacy: .public)")
+            return "dry-run-\(Self.dryRunCounter)"
         }
         let entities: [JSONValue] = mediaIDs.map { ["media_id": .string($0), "tagged_users": []] }
         var variables: [String: JSONValue] = [
@@ -419,8 +492,13 @@ actor XClient {
             "semantic_annotation_ids": [], "disallowed_reply_options": nil,
         ]
         if let replyTo { variables["reply"] = ["in_reply_to_tweet_id": .string(replyTo), "exclude_reply_user_ids": []] }
+        if let quoteURL { variables["attachment_url"] = .string(quoteURL.absoluteString) }
         let json = try await graphQL("CreateTweet", variables: variables)
         let result = ((((json as? [String: Any])?["data"] as? [String: Any])?["create_tweet"] as? [String: Any])?["tweet_results"] as? [String: Any])?["result"] as? [String: Any]
-        return result.flatMap { TimelineParser.tweet(from: $0) }
+        let unwrapped = result.flatMap(TimelineParser.unwrapTweet)
+        guard let id = (unwrapped?["rest_id"] as? String) ?? ((unwrapped?["legacy"] as? [String: Any])?["id_str"] as? String) else {
+            throw XError.api("X didn't confirm the post.")
+        }
+        return id
     }
 }

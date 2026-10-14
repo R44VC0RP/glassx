@@ -34,22 +34,18 @@ final class ImagePipeline: @unchecked Sendable {
         let key = key(url, maxPixel)
         if let hit = cache.object(forKey: key as NSString) { return hit.image }
 
-        lock.lock()
-        if let task = inflight[key] {
-            lock.unlock()
-            return await task.value
+        let task: Task<CGImage?, Never> = lock.withLock {
+            if let existing = inflight[key] { return existing }
+            let created = Task.detached(priority: .userInitiated) { [session] () -> CGImage? in
+                guard let (data, _) = try? await session.data(from: url) else { return nil }
+                return Self.downsample(data, maxPixel: maxPixel)
+            }
+            inflight[key] = created
+            return created
         }
-        let task = Task.detached(priority: .userInitiated) { [session] () -> CGImage? in
-            guard let (data, _) = try? await session.data(from: url) else { return nil }
-            return Self.downsample(data, maxPixel: maxPixel)
-        }
-        inflight[key] = task
-        lock.unlock()
 
         let image = await task.value
-        lock.lock()
-        inflight[key] = nil
-        lock.unlock()
+        lock.withLock { inflight[key] = nil }
         if let image {
             cache.setObject(CGImageBox(image), forKey: key as NSString, cost: image.bytesPerRow * image.height)
         }

@@ -18,6 +18,7 @@
 		4D44BC394220D7049A54BBD4 /* InlineVideo.swift in Sources */ = {isa = PBXBuildFile; fileRef = 378216ABC47E240160E09D0D /* InlineVideo.swift */; };
 		601FCC9307E3610D8FDC1469 /* AppModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = ED607A30EC4516AB5F463EFA /* AppModel.swift */; };
 		6ED9055E7514B6E9ECE220A9 /* FeedView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0AB3832878F6655570FFBDB2 /* FeedView.swift */; };
+		803BF2694232C7A3EC93EF9A /* GlassX.icon in Resources */ = {isa = PBXBuildFile; fileRef = 8CFE6D287AED354687FCD1D0 /* GlassX.icon */; };
 		883DF0A4E831A20CC44FC50C /* Keychain.swift in Sources */ = {isa = PBXBuildFile; fileRef = B3229A449B4EA69C352EF8F3 /* Keychain.swift */; };
 		97A4857E930E84675834EB11 /* PostScheduler.swift in Sources */ = {isa = PBXBuildFile; fileRef = C2DE552FED289152A47D86C8 /* PostScheduler.swift */; };
 		A9D7723C8F1445AA19C257E7 /* Models.swift in Sources */ = {isa = PBXBuildFile; fileRef = 602E589E3B665DBA533988B3 /* Models.swift */; };
@@ -25,6 +26,7 @@
 		AD4DBE97E133B87F2AFE2D91 /* Attachment.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0E576D59E5E9E561FDFF8835 /* Attachment.swift */; };
 		B55B8C4C9E6FDF4C5FE8A9CA /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 43DB0C8824388983EF67B5F4 /* SettingsView.swift */; };
 		C248ACC024B6248F2B4B695A /* TimelineParser.swift in Sources */ = {isa = PBXBuildFile; fileRef = A005263E62798D83BB5F0FED /* TimelineParser.swift */; };
+		C401DD9CD3E9364987807DEF /* PostSnapshot.swift in Sources */ = {isa = PBXBuildFile; fileRef = 864A0211501B8DD8A3CB17D2 /* PostSnapshot.swift */; };
 		CD136B7A9781201916A1D662 /* GlassXApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6A2CD8B19049DA5CDAAAB377 /* GlassXApp.swift */; };
 		D21E37E2DF4F6FEE2B4A9CB9 /* LoginView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 76AB7076709AE211531A09FC /* LoginView.swift */; };
 		E617D3A93D083C1B2434C9D3 /* TransactionID.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0E5DE8F1A0E6CA894FB29760 /* TransactionID.swift */; };
@@ -48,8 +50,10 @@
 		6A2CD8B19049DA5CDAAAB377 /* GlassXApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlassXApp.swift; sourceTree = "<group>"; };
 		6B144925C2C72C10E34C59F2 /* XClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = XClient.swift; sourceTree = "<group>"; };
 		76AB7076709AE211531A09FC /* LoginView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LoginView.swift; sourceTree = "<group>"; };
+		864A0211501B8DD8A3CB17D2 /* PostSnapshot.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PostSnapshot.swift; sourceTree = "<group>"; };
 		8686676AC26B86EDB91FF08C /* ComposeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ComposeView.swift; sourceTree = "<group>"; };
 		8BA5B9EA48F5762361EBC3BF /* MediaViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MediaViews.swift; sourceTree = "<group>"; };
+		8CFE6D287AED354687FCD1D0 /* GlassX.icon */ = {isa = PBXFileReference; lastKnownFileType = wrapper.icon; path = GlassX.icon; sourceTree = "<group>"; };
 		938FE9312D2DACE93E9A589D /* GlassX.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = GlassX.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		9509CAB996B9AB4D06FEDF64 /* RemoteImage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RemoteImage.swift; sourceTree = "<group>"; };
 		96D6513A6ECDB1A5739CA854 /* TweetText.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TweetText.swift; sourceTree = "<group>"; };
@@ -104,6 +108,7 @@
 				378216ABC47E240160E09D0D /* InlineVideo.swift */,
 				76AB7076709AE211531A09FC /* LoginView.swift */,
 				8BA5B9EA48F5762361EBC3BF /* MediaViews.swift */,
+				864A0211501B8DD8A3CB17D2 /* PostSnapshot.swift */,
 				9509CAB996B9AB4D06FEDF64 /* RemoteImage.swift */,
 				C472A7366ED523F97FEFE995 /* RootView.swift */,
 				D16422762A6E9213378A7AEA /* Screens.swift */,
@@ -140,6 +145,7 @@
 				E47C25A80BC30530F609A907 /* Auth */,
 				484B5AAF842F375A979DC5DB /* Models */,
 				3720ED71D5F28E7015FBE0AF /* Posting */,
+				FD674AB9E27DDE2157E09A0A /* Resources */,
 				460A69FDA4C4343C7A1E523E /* Views */,
 			);
 			path = GlassX;
@@ -164,6 +170,14 @@
 			path = Auth;
 			sourceTree = "<group>";
 		};
+		FD674AB9E27DDE2157E09A0A /* Resources */ = {
+			isa = PBXGroup;
+			children = (
+				8CFE6D287AED354687FCD1D0 /* GlassX.icon */,
+			);
+			path = Resources;
+			sourceTree = "<group>";
+		};
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
@@ -172,6 +186,7 @@
 			buildConfigurationList = A1A8B761D6BBAA45A4C21DA3 /* Build configuration list for PBXNativeTarget "GlassX" */;
 			buildPhases = (
 				A15C77315840B9EB35073AC3 /* Sources */,
+				D2F1D5D0945AA9DA5D34965C /* Resources */,
 			);
 			buildRules = (
 			);
@@ -217,6 +232,17 @@
 		};
 /* End PBXProject section */
 
+/* Begin PBXResourcesBuildPhase section */
+		D2F1D5D0945AA9DA5D34965C /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				803BF2694232C7A3EC93EF9A /* GlassX.icon in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
 /* Begin PBXSourcesBuildPhase section */
 		A15C77315840B9EB35073AC3 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
@@ -237,6 +263,7 @@
 				48EE4CF037D6AA31738DB597 /* MediaViews.swift in Sources */,
 				A9D7723C8F1445AA19C257E7 /* Models.swift in Sources */,
 				97A4857E930E84675834EB11 /* PostScheduler.swift in Sources */,
+				C401DD9CD3E9364987807DEF /* PostSnapshot.swift in Sources */,
 				45F3AE298C17DB9E4410FB76 /* RemoteImage.swift in Sources */,
 				AC63D9BC3838531F6AA9B57D /* RootView.swift in Sources */,
 				F0D300F81F8BC49F0AD4793A /* Screens.swift in Sources */,
@@ -256,7 +283,7 @@
 		096B98C902237E7AA2B52117 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_APPICON_NAME = GlassX;
 				CODE_SIGN_ENTITLEMENTS = GlassX/GlassX.entitlements;
 				CODE_SIGN_IDENTITY = 19AE73C094F20EE9C3DE11B9E2CE129D5D197C32;
 				CODE_SIGN_STYLE = Manual;
@@ -277,7 +304,7 @@
 		5C007E7E49B0580F1A40108C /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_APPICON_NAME = GlassX;
 				CODE_SIGN_ENTITLEMENTS = GlassX/GlassX.entitlements;
 				CODE_SIGN_IDENTITY = 19AE73C094F20EE9C3DE11B9E2CE129D5D197C32;
 				CODE_SIGN_STYLE = Manual;

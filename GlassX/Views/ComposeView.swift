@@ -11,8 +11,12 @@ struct ComposerOverlay: View {
 
     var target: ComposeTarget
     @Environment(AppModel.self) private var model
-    @State private var text = ""
-    @State private var attachments: [PostAttachment] = []
+    @State private var parts: [ComposerPart] = [ComposerPart()]
+    @FocusState private var focusedPart: UUID?
+    @State private var hoveredPart: UUID?
+    /// Thread send progress: how many parts have gone out.
+    @State private var sentParts = 0
+    @State private var totalParts = 1
     @State private var stage: Stage = .editing
     @State private var progress: Double?
     @State private var showingImporter = false
@@ -22,8 +26,6 @@ struct ComposerOverlay: View {
     @State private var shakes = 0
     @State private var inlineError: String?
     @State private var pasteMonitor: Any?
-    @State private var editorHeight: CGFloat = 26
-    @FocusState private var focused: Bool
 
     // Card morph
     @State private var collapsed = false
@@ -40,12 +42,14 @@ struct ComposerOverlay: View {
     @State private var orb = false
 
     private let limit = 280
-    private var trimmed: String { text.trimmingCharacters(in: .whitespacesAndNewlines) }
     private var editing: Bool { stage == .editing }
-    private var canPost: Bool { (!trimmed.isEmpty || !attachments.isEmpty) && editing }
-    private var canAttachMore: Bool { attachments.count < 4 && !attachments.contains(where: \.isVideoLike) }
+    private var activeIndex: Int { parts.firstIndex { $0.id == focusedPart } ?? parts.count - 1 }
+    private var postableParts: [ComposerPart] { parts.filter { !$0.isEmpty } }
+    private var canPost: Bool { !postableParts.isEmpty && editing }
+    private var canAttachMore: Bool { parts[activeIndex].canAttachMore }
     private var willQueue: Bool { model.scheduler.wouldQueue(isReply: target.replyTo != nil) }
     private var shown: Bool { appeared && !exiting }
+    private var isThread: Bool { totalParts > 1 }
 
     var body: some View {
         GeometryReader { geometry in
@@ -86,12 +90,12 @@ struct ComposerOverlay: View {
         }
         .onAppear {
             #if DEBUG
-            if let i = CommandLine.arguments.firstIndex(of: "--compose-text"), let prefill = CommandLine.arguments[safe: i + 1], text.isEmpty {
-                text = prefill
+            if let i = CommandLine.arguments.firstIndex(of: "--compose-text"), let prefill = CommandLine.arguments[safe: i + 1] {
+                parts = prefill.components(separatedBy: "\n---\n").map { ComposerPart(text: $0) }
             }
             #endif
             withAnimation(.bouncy(duration: 0.42, extraBounce: 0.08)) { appeared = true }
-            focused = true
+            focusedPart = parts.last?.id
             installPasteMonitor()
             if let demo = target.demoText { runDemo(demo) }
         }
@@ -103,7 +107,7 @@ struct ComposerOverlay: View {
                 do { loaded.append(try PostAttachment.load(from: url)) } catch { fail(error.localizedDescription) }
             }
             add(loaded)
-            focused = true
+            focusedPart = parts[safe: activeIndex]?.id
         }
     }
 
@@ -142,8 +146,8 @@ struct ComposerOverlay: View {
             let frame = proxy.frame(in: .global)
             return CGPoint(x: frame.midX, y: frame.midY)
         } action: { pillCenter = $0 }
-        .animation(.smooth(duration: 0.22), value: editorHeight)
-        .animation(.bouncy(duration: 0.35), value: attachments)
+        .animation(.smooth(duration: 0.22), value: parts.map(\.height))
+        .animation(.bouncy(duration: 0.35), value: parts.map(\.attachments.count))
         .animation(.easeOut(duration: 0.15), value: isDropTargeted)
         .dropDestination(for: URL.self) { urls, _ in
             add(urls.compactMap { try? PostAttachment.load(from: $0) })
@@ -154,18 +158,10 @@ struct ComposerOverlay: View {
     private var dock: some View {
         VStack(spacing: 0) {
             if let reply = target.replyTo { replyChip(reply) }
-            HStack(alignment: .top, spacing: 12) {
-                Avatar(user: model.viewer, size: 32).padding(.top, 1)
-                editor
-            }
-            .padding(.horizontal, 18)
-            .padding(.top, target.replyTo == nil ? 18 : 12)
-            .padding(.bottom, 10)
-
-            if !attachments.isEmpty {
-                attachmentStrip
-                    .padding(.horizontal, 18).padding(.leading, 44).padding(.bottom, 10)
-                    .transition(.opacity.combined(with: .move(edge: .bottom)))
+            ForEach(Array(parts.enumerated()), id: \.element.id) { index, part in
+                partRow(index: index)
+                    .transition(.asymmetric(insertion: .opacity.combined(with: .move(edge: .bottom)),
+                                            removal: .opacity.combined(with: .scale(scale: 0.96, anchor: .top))))
             }
 
             HStack(spacing: 8) {
@@ -173,33 +169,93 @@ struct ComposerOverlay: View {
                     .help("Add media (⌘O)")
                     .accessibilityLabel("Add media")
                 DockIconButton(symbol: "face.smiling", enabled: true) {
-                    focused = true
+                    focusedPart = parts[safe: activeIndex]?.id
                     NSApp.orderFrontCharacterPalette(nil)
                 }
                 .help("Emoji")
                 .accessibilityLabel("Emoji")
+                DockIconButton(symbol: "plus.bubble", enabled: parts.count < 25) { addPart() }
+                    .help("Add another post to the thread (⇧⌘↩)")
+                    .accessibilityLabel("Add to thread")
                 Group {
                     if let inlineError {
                         Label(inlineError, systemImage: "exclamationmark.triangle.fill").foregroundStyle(.orange).lineLimit(1)
                     } else if willQueue {
                         Label("Queues for \(model.scheduler.nextSlot().formatted(date: .omitted, time: .shortened))", systemImage: "clock")
                             .foregroundStyle(Color.xGray)
+                    } else if parts.count > 1 {
+                        Text("Thread · \(parts.count) posts").foregroundStyle(Color.xGray)
+                            .contentTransition(.numericText(value: Double(parts.count)))
                     }
                 }
                 .font(.system(size: 12, weight: .medium))
                 .padding(.leading, 4)
                 .transition(.opacity)
                 Spacer()
-                CharacterRing(count: trimmed.count, limit: limit)
+                CharacterRing(count: parts[safe: activeIndex]?.trimmed.count ?? 0, limit: limit)
                 sendButton
             }
             .padding(.horizontal, 12)
+            .padding(.top, 2)
             .padding(.bottom, 12)
             .animation(.smooth, value: inlineError)
+            .animation(.smooth, value: parts.count)
         }
         .background {
             Button("", action: { if canAttachMore { showingImporter = true } }).keyboardShortcut("o", modifiers: .command).hidden()
+            Button("", action: addPart).keyboardShortcut(.return, modifiers: [.command, .shift]).hidden()
         }
+        .animation(.spring(duration: 0.4, bounce: 0.15), value: parts.map(\.id))
+    }
+
+    /// One post of the thread: avatar with a connecting line to the next, its editor, media and
+    /// (for the first post) the quoted post.
+    private func partRow(index: Int) -> some View {
+        let part = parts[index]
+        let isLast = index == parts.count - 1
+        return HStack(alignment: .top, spacing: 12) {
+            VStack(spacing: 4) {
+                Avatar(user: model.viewer, size: 32)
+                    .opacity(index == 0 || focusedPart == part.id ? 1 : 0.75)
+                if !isLast {
+                    Capsule().fill(Color.xLine).frame(width: 2).frame(maxHeight: .infinity)
+                }
+            }
+            .frame(width: 32)
+            .padding(.top, 1)
+
+            VStack(alignment: .leading, spacing: 10) {
+                editor(index: index)
+                if !part.attachments.isEmpty {
+                    attachmentStrip(index: index)
+                        .transition(.opacity.combined(with: .move(edge: .bottom)))
+                }
+                if index == 0, let quote = target.quote { QuotePreview(tweet: quote) }
+            }
+            .padding(.bottom, isLast ? 0 : 6)
+
+            if parts.count > 1 {
+                Button {
+                    removePart(at: index)
+                } label: {
+                    Image(systemName: "xmark")
+                        .font(.system(size: 10, weight: .bold))
+                        .foregroundStyle(Color.xGray)
+                        .frame(width: 22, height: 22)
+                        .background(Circle().fill(.white.opacity(0.07)))
+                }
+                .buttonStyle(PressScaleStyle())
+                .opacity(hoveredPart == part.id || focusedPart == part.id ? 1 : 0)
+                .help("Remove this post")
+                .accessibilityLabel("Remove post \(index + 1)")
+            }
+        }
+        .padding(.horizontal, 18)
+        .padding(.top, index == 0 ? (target.replyTo == nil ? 18 : 12) : 0)
+        .padding(.bottom, 10)
+        .contentShape(Rectangle())
+        .onHover { hoveredPart = $0 ? part.id : (hoveredPart == part.id ? nil : hoveredPart) }
+        .animation(.easeOut(duration: 0.15), value: hoveredPart)
     }
 
     private var sendButton: some View {
@@ -252,12 +308,18 @@ struct ComposerOverlay: View {
 
     private var pillLabel: String {
         switch stage {
-        case .sent: return target.replyTo == nil ? "Posted" : "Reply sent"
+        case .sent:
+            if isThread { return "Thread posted" }
+            if target.replyTo != nil { return "Reply sent" }
+            return target.quote == nil ? "Posted" : "Quote posted"
         case .queued(let date):
-            return "Scheduled for \(date.formatted(date: Calendar.current.isDateInToday(date) ? .omitted : .abbreviated, time: .shortened))"
+            let time = date.formatted(date: Calendar.current.isDateInToday(date) ? .omitted : .abbreviated, time: .shortened)
+            return isThread ? "Thread scheduled for \(time)" : "Scheduled for \(time)"
         default:
             if let progress { return "Uploading \(Int(progress * 100))%" }
-            return willQueueLabel ? "Scheduling…" : (target.replyTo == nil ? "Posting…" : "Replying…")
+            if willQueueLabel { return "Scheduling…" }
+            if isThread { return "Posting \(min(sentParts + 1, totalParts)) of \(totalParts)…" }
+            return target.replyTo == nil ? "Posting…" : "Replying…"
         }
     }
 
@@ -290,40 +352,63 @@ struct ComposerOverlay: View {
         .padding(.top, 14)
     }
 
-    /// A TextEditor that grows with its text (Return = new line, ⌘↩ = post).
-    private var editor: some View {
-        ZStack(alignment: .topLeading) {
-            Text(text.isEmpty ? " " : text + "\n")
+    /// A TextEditor that grows with its text (Return = new line, ⌘↩ = post, ⇧⌘↩ = add to thread,
+    /// ⌫ in an empty follow-up post removes it).
+    private func editor(index: Int) -> some View {
+        let part = parts[index]
+        return ZStack(alignment: .topLeading) {
+            Text(part.text.isEmpty ? " " : part.text + "\n")
                 .font(.system(size: 17))
                 .lineSpacing(3)
                 .fixedSize(horizontal: false, vertical: true)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .hidden()
-                .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { editorHeight = min(max($0, 26), 300) }
+                .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { height in
+                    if let i = parts.firstIndex(where: { $0.id == part.id }) { parts[i].height = min(max(height, 26), 300) }
+                }
 
-            if text.isEmpty {
-                RotatingPlaceholder(isReply: target.replyTo != nil, size: 17)
-                    .allowsHitTesting(false)
+            if part.text.isEmpty {
+                if index == 0 {
+                    RotatingPlaceholder(isReply: target.replyTo != nil, isQuote: target.quote != nil, size: 17)
+                        .allowsHitTesting(false)
+                } else {
+                    Text("Add another post")
+                        .font(.system(size: 17))
+                        .foregroundStyle(.white.opacity(0.32))
+                        .allowsHitTesting(false)
+                }
             }
 
-            TextEditor(text: $text)
-                .font(.system(size: 17))
-                .lineSpacing(3)
-                .scrollContentBackground(.hidden)
-                .scrollIndicators(.never)
-                .focused($focused)
-                .padding(.leading, -5)
-                .frame(height: editorHeight)
-                .onKeyPress(.escape) { close(); return .handled }
+            TextEditor(text: Binding(
+                get: { parts.first { $0.id == part.id }?.text ?? "" },
+                set: { value in if let i = parts.firstIndex(where: { $0.id == part.id }) { parts[i].text = value } }
+            ))
+            .font(.system(size: 17))
+            .lineSpacing(3)
+            .scrollContentBackground(.hidden)
+            .scrollIndicators(.never)
+            .focused($focusedPart, equals: part.id)
+            .padding(.leading, -5)
+            .frame(height: part.height)
+            .onKeyPress(.escape) { close(); return .handled }
+            .onKeyPress(.delete) {
+                guard index > 0, part.text.isEmpty, part.attachments.isEmpty else { return .ignored }
+                removePart(at: index)
+                return .handled
+            }
         }
     }
 
-    private var attachmentStrip: some View {
-        ScrollView(.horizontal) {
+    private func attachmentStrip(index: Int) -> some View {
+        let attachments = parts[index].attachments
+        let partID = parts[index].id
+        return ScrollView(.horizontal) {
             HStack(spacing: 8) {
                 ForEach(attachments) { attachment in
                     AttachmentThumb(attachment: attachment, large: attachments.count == 1) {
-                        attachments.removeAll { $0.id == attachment.id }
+                        if let i = parts.firstIndex(where: { $0.id == partID }) {
+                            parts[i].attachments.removeAll { $0.id == attachment.id }
+                        }
                     }
                     .transition(.scale(scale: 0.6).combined(with: .opacity))
                 }
@@ -337,10 +422,26 @@ struct ComposerOverlay: View {
 
     private func add(_ new: [PostAttachment]) {
         guard !new.isEmpty else { return }
+        let index = activeIndex
         for attachment in new {
-            if attachment.isVideoLike { attachments = [attachment] }
-            else if canAttachMore { attachments.append(attachment) }
+            if attachment.isVideoLike { parts[index].attachments = [attachment] }
+            else if parts[index].canAttachMore { parts[index].attachments.append(attachment) }
         }
+    }
+
+    private func addPart() {
+        guard editing, parts.count < 25 else { return }
+        let new = ComposerPart()
+        let insertAt = min(activeIndex + 1, parts.count)
+        parts.insert(new, at: insertAt)
+        DispatchQueue.main.async { focusedPart = new.id }
+    }
+
+    private func removePart(at index: Int) {
+        guard parts.count > 1, parts.indices.contains(index) else { return }
+        let focusAfter = parts[max(0, index - 1)].id
+        parts.remove(at: index)
+        focusedPart = focusAfter
     }
 
     private func installPasteMonitor() {
@@ -389,25 +490,32 @@ struct ComposerOverlay: View {
 
     private func post() {
         guard canPost else {
-            if editing, trimmed.isEmpty, attachments.isEmpty { shakes += 1 }
+            if editing, postableParts.isEmpty { shakes += 1 }
             return
         }
         let queues = willQueue
-        let body = trimmed
-        let files = attachments
-        let hasMedia = !files.isEmpty
+        let draft = PostDraft(parts: postableParts.map { .init(text: $0.trimmed, attachments: $0.attachments) },
+                              replyTo: target.replyTo, quote: target.quote)
+        let hasMedia = draft.parts.contains { !$0.attachments.isEmpty }
         inlineError = nil
         willQueueLabel = queues
+        totalParts = draft.parts.count
+        sentParts = 0
         stage = .sending
         collapse()
 
         Task {
             let started = Date.now
-            let outcome = await model.post(text: body, replyTo: target.replyTo, attachments: files, announce: false) { value in
+            let outcome = await model.post(draft, announce: false, progress: { value in
                 Task { @MainActor in
                     if hasMedia { withAnimation(.smooth) { progress = value } }
                 }
-            }
+            }, partSent: { index in
+                withAnimation(.spring(duration: 0.4, bounce: 0.1)) {
+                    sentParts = index + 1
+                    progress = nil
+                }
+            })
             // Keep "Posting…" on screen long enough to read before the result swaps in.
             let elapsed = Date.now.timeIntervalSince(started)
             if elapsed < 1.0 { try? await Task.sleep(for: .seconds(1.0 - elapsed)) }
@@ -455,9 +563,16 @@ struct ComposerOverlay: View {
     private func runDemo(_ demo: String) {
         Task {
             try? await Task.sleep(for: .seconds(0.7))
-            for character in demo {
-                text.append(character)
-                try? await Task.sleep(for: .milliseconds(Int.random(in: 30...65)))
+            for (index, chunk) in demo.components(separatedBy: "\n---\n").enumerated() {
+                if index > 0 {
+                    try? await Task.sleep(for: .seconds(0.35))
+                    addPart()
+                    try? await Task.sleep(for: .seconds(0.35))
+                }
+                for character in chunk {
+                    parts[parts.count - 1].text.append(character)
+                    try? await Task.sleep(for: .milliseconds(Int.random(in: 30...65)))
+                }
             }
             try? await Task.sleep(for: .seconds(0.9))
             post()
@@ -466,6 +581,50 @@ struct ComposerOverlay: View {
 }
 
 // MARK: - Pieces
+
+struct ComposerPart: Identifiable, Equatable {
+    let id = UUID()
+    var text = ""
+    var attachments: [PostAttachment] = []
+    var height: CGFloat = 26
+
+    var trimmed: String { text.trimmingCharacters(in: .whitespacesAndNewlines) }
+    var isEmpty: Bool { trimmed.isEmpty && attachments.isEmpty }
+    /// Up to four photos, or a single GIF or video, like x.com.
+    var canAttachMore: Bool { attachments.count < 4 && !attachments.contains(where: \.isVideoLike) }
+}
+
+/// The post being quoted, shown under the first part like x.com's composer.
+private struct QuotePreview: View {
+    var tweet: XTweet
+
+    var body: some View {
+        let shape = RoundedRectangle(cornerRadius: 14, style: .continuous)
+        HStack(alignment: .top, spacing: 10) {
+            VStack(alignment: .leading, spacing: 4) {
+                HStack(spacing: 5) {
+                    Avatar(user: tweet.author, size: 18)
+                    Text(tweet.author.name).fontWeight(.semibold).lineLimit(1)
+                    VerifiedBadge(user: tweet.author, size: 12)
+                    Text("@\(tweet.author.screenName)").foregroundStyle(Color.xGray).lineLimit(1)
+                }
+                .font(.system(size: 13))
+                if !tweet.text.isEmpty {
+                    Text(tweet.text).font(.system(size: 13.5)).lineLimit(3).foregroundStyle(.white.opacity(0.9))
+                }
+            }
+            Spacer(minLength: 0)
+            if let media = tweet.media.first {
+                RemoteImage(url: media.previewURL, maxPixel: ImageSize.thumbnail)
+                    .frame(width: 54, height: 54)
+                    .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+            }
+        }
+        .padding(10)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .overlay(shape.strokeBorder(Color.xLine, lineWidth: 1))
+    }
+}
 
 /// One icon that morphs through the whole send:
 /// spinning arc (or upload progress) → the arc closes into a full ring → it fills blue and a
@@ -621,12 +780,14 @@ private struct ProgressRing: View {
 /// Cycles a few prompts while the field is empty, with a soft crossfade.
 private struct RotatingPlaceholder: View {
     var isReply: Bool
+    var isQuote = false
     var size: CGFloat = 17
     @State private var index = 0
 
     private var prompts: [String] {
-        isReply ? ["Post your reply", "Add to the conversation…", "Say something nice…"]
-                : ["What's happening?", "Share an idea…", "Ship it.", "Hot take?"]
+        if isQuote { return ["Add a comment", "Your take?", "Why this matters…"] }
+        return isReply ? ["Post your reply", "Add to the conversation…", "Say something nice…"]
+                       : ["What's happening?", "Share an idea…", "Ship it.", "Hot take?"]
     }
 
     var body: some View {

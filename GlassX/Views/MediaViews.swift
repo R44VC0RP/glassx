@@ -182,7 +182,7 @@ struct MediaViewer: View {
         let newPlayer = AVPlayer(url: url)
         if item.kind == .gif {
             newPlayer.isMuted = true
-            NotificationCenter.default.addObserver(forName: .AVPlayerItemDidPlayToEndTime, object: newPlayer.currentItem, queue: .main) { _ in
+            NotificationCenter.default.addObserver(forName: AVPlayerItem.didPlayToEndTimeNotification, object: newPlayer.currentItem, queue: .main) { _ in
                 newPlayer.seek(to: .zero)
                 newPlayer.play()
             }

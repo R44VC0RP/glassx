@@ -69,6 +69,7 @@ struct TweetDetailView: View {
             guard press.modifiers.isDisjoint(with: [.command, .control, .option]),
                   let tweet = parts.focal ?? initial else { return .ignored }
             switch press.characters.lowercased() {
+            case "q": model.compose = ComposeTarget(quote: tweet)
             case "l": model.toggleLike(tweet)
             case "r": replyFocused = true
             case "t": model.toggleRepost(tweet)
@@ -147,20 +148,39 @@ struct TweetDetailView: View {
 
 // MARK: - Profile
 
+enum ProfileTab: String, CaseIterable, Hashable {
+    case posts, replies, media, likes
+    var title: String {
+        switch self {
+        case .posts: "Posts"
+        case .replies: "Replies"
+        case .media: "Media"
+        case .likes: "Likes"
+        }
+    }
+}
+
 struct ProfileView: View {
     var screenName: String
     @Environment(AppModel.self) private var model
     @State private var user: XUser?
-    @State private var feed: FeedModel?
+    @State private var feeds: [ProfileTab: FeedModel] = [:]
+    @State private var tab: ProfileTab = .posts
     @State private var error: String?
+
+    private var isSelf: Bool { user != nil && user?.id == model.viewer?.id }
+    /// X keeps likes private, so the Likes tab only exists on your own profile.
+    private var tabs: [ProfileTab] { isSelf ? ProfileTab.allCases : [.posts, .replies, .media] }
 
     var body: some View {
         Group {
-            if let user, let feed {
-                FeedView(feed: feed, emptyTitle: "No posts yet", emptySymbol: "text.bubble") {
+            if let user, let feed = feeds[tab] {
+                FeedView(feed: feed, emptyTitle: emptyTitle, emptySymbol: tab == .media ? "photo" : "text.bubble",
+                         layout: tab == .media ? .mediaGrid : .list) {
                     ProfileHeader(user: user)
-                    Hairline()
+                    FeedTabs(selection: $tab.animation(.smooth), options: tabs.map { ($0, $0.title) })
                 }
+                .id(tab)
             } else if let error {
                 ContentUnavailableView("Couldn't load @\(screenName)", systemImage: "person.crop.circle.badge.exclamationmark", description: Text(error))
             } else {
@@ -169,7 +189,22 @@ struct ProfileView: View {
         }
         .navigationTitle(user?.name ?? "@\(screenName)")
         .navigationSubtitle(user.map { "\($0.postsCount.compact) posts" } ?? "")
-        .task(id: screenName) { await load() }
+        .task(id: "\(screenName)-\(model.profileRevision)") { await load() }
+        #if DEBUG
+        .onAppear {
+            if let i = CommandLine.arguments.firstIndex(of: "--profile-tab"),
+               let raw = CommandLine.arguments[safe: i + 1], let forced = ProfileTab(rawValue: raw) { tab = forced }
+        }
+        #endif
+    }
+
+    private var emptyTitle: String {
+        switch tab {
+        case .posts: "No posts yet"
+        case .replies: "No replies yet"
+        case .media: "No photos or videos yet"
+        case .likes: "No likes yet"
+        }
     }
 
     private func load() async {
@@ -177,7 +212,12 @@ struct ProfileView: View {
         do {
             let loaded = try await client.user(screenName: screenName)
             let userID = loaded.id
-            feed = FeedModel { client, cursor in try await client.userTweets(userID: userID, cursor: cursor) }
+            feeds = [
+                .posts: FeedModel { client, cursor in try await client.userTweets(userID: userID, cursor: cursor) },
+                .replies: FeedModel { client, cursor in try await client.userReplies(userID: userID, cursor: cursor) },
+                .media: FeedModel { client, cursor in try await client.userMedia(userID: userID, cursor: cursor) },
+                .likes: FeedModel { client, cursor in try await client.likes(userID: userID, cursor: cursor) },
+            ]
             user = loaded
         } catch {
             model.report(error)
@@ -216,17 +256,8 @@ struct ProfileHeader: View {
                     if model.viewer?.id == user.id {
                         OutlineButton(title: "Edit profile") { openURL(URL(string: "https://x.com/settings/profile")!) }
                     } else {
-                        OutlineButton(title: "Open on x.com", systemImage: "arrow.up.right") {
-                            openURL(URL(string: "https://x.com/\(user.screenName)")!)
-                        }
-                        if user.isFollowing {
-                            Text("Following")
-                                .font(.system(size: 14, weight: .bold))
-                                .foregroundStyle(.white)
-                                .padding(.horizontal, 16)
-                                .frame(height: 34)
-                                .overlay(Capsule().strokeBorder(Color(red: 83 / 255, green: 100 / 255, blue: 113 / 255), lineWidth: 1))
-                        }
+                        ProfileMoreMenu(user: user)
+                        FollowButton(user: user)
                     }
                 }
                 .padding(.top, 10)
@@ -237,7 +268,22 @@ struct ProfileHeader: View {
                         VerifiedBadge(user: user, size: 18)
                         if user.isProtected { Image(systemName: "lock.fill").foregroundStyle(Color.xGray) }
                     }
-                    Text("@\(user.screenName)").foregroundStyle(Color.xGray)
+                    HStack(spacing: 6) {
+                        Text("@\(user.screenName)").foregroundStyle(Color.xGray)
+                        if user.followsYou, model.viewer?.id != user.id {
+                            Text("Follows you")
+                                .font(.system(size: 12, weight: .medium))
+                                .foregroundStyle(Color.xGray)
+                                .padding(.horizontal, 5)
+                                .padding(.vertical, 1)
+                                .background(RoundedRectangle(cornerRadius: 4).fill(.white.opacity(0.08)))
+                        }
+                        if model.relationship(for: user).muting {
+                            Label("Muted", systemImage: "speaker.slash.fill")
+                                .font(.system(size: 12, weight: .medium))
+                                .foregroundStyle(Color.xGray)
+                        }
+                    }
                 }
 
                 if !user.bio.isEmpty {
@@ -307,6 +353,91 @@ struct OutlineButton: View {
     }
 }
 
+/// X's follow button: white "Follow", outlined "Following" that turns into a red "Unfollow" on
+/// hover, and a red "Blocked" / "Unblock" when you've blocked them.
+struct FollowButton: View {
+    var user: XUser
+    @Environment(AppModel.self) private var model
+    @State private var hovering = false
+
+    var body: some View {
+        let relationship = model.relationship(for: user)
+        let title: String = relationship.blocking ? (hovering ? "Unblock" : "Blocked")
+            : relationship.following ? (hovering ? "Unfollow" : "Following")
+            : (user.followsYou ? "Follow back" : "Follow")
+        let destructive = relationship.blocking || (relationship.following && hovering)
+        let filled = !relationship.following && !relationship.blocking
+
+        Button {
+            if relationship.blocking { model.setBlocked(false, user) }
+            else { model.setFollowing(!relationship.following, user) }
+        } label: {
+            Text(title)
+                .font(.system(size: 14, weight: .bold))
+                .foregroundStyle(filled ? Color.black : (destructive ? Color.red : Color.white))
+                .contentTransition(.interpolate)
+                .padding(.horizontal, 16)
+                .frame(minWidth: 104)
+                .frame(height: 34)
+                .background(Capsule().fill(filled ? Color.white : (destructive ? Color.red.opacity(0.1) : .clear)))
+                .overlay(Capsule().strokeBorder(destructive ? Color.red.opacity(0.5) : Color(red: 83 / 255, green: 100 / 255, blue: 113 / 255),
+                                                lineWidth: filled ? 0 : 1))
+                .contentShape(Capsule())
+        }
+        .buttonStyle(.plain)
+        .onHover { hovering = $0 }
+        .animation(.snappy(duration: 0.2), value: hovering)
+        .animation(.snappy(duration: 0.25), value: relationship)
+        .accessibilityLabel(title)
+    }
+}
+
+/// "…" menu on someone's profile: mute, block, copy link, open on x.com.
+struct ProfileMoreMenu: View {
+    var user: XUser
+    @Environment(AppModel.self) private var model
+    @Environment(\.openURL) private var openURL
+    @State private var confirmingBlock = false
+
+    var body: some View {
+        let relationship = model.relationship(for: user)
+        Menu {
+            Button(relationship.muting ? "Unmute @\(user.screenName)" : "Mute @\(user.screenName)",
+                   systemImage: relationship.muting ? "speaker.wave.2" : "speaker.slash") {
+                model.setMuted(!relationship.muting, user)
+            }
+            if relationship.blocking {
+                Button("Unblock @\(user.screenName)", systemImage: "hand.raised.slash") { model.setBlocked(false, user) }
+            } else {
+                Button("Block @\(user.screenName)…", systemImage: "hand.raised", role: .destructive) { confirmingBlock = true }
+            }
+            Divider()
+            Button("Copy Link to Profile", systemImage: "link") {
+                NSPasteboard.general.clearContents()
+                NSPasteboard.general.setString("https://x.com/\(user.screenName)", forType: .string)
+            }
+            Button("Open on x.com", systemImage: "safari") { openURL(URL(string: "https://x.com/\(user.screenName)")!) }
+        } label: {
+            Image(systemName: "ellipsis")
+                .font(.system(size: 14, weight: .bold))
+                .foregroundStyle(.white)
+                .frame(width: 34, height: 34)
+                .overlay(Circle().strokeBorder(Color(red: 83 / 255, green: 100 / 255, blue: 113 / 255), lineWidth: 1))
+                .contentShape(Circle())
+        }
+        .menuStyle(.button)
+        .buttonStyle(.plain)
+        .menuIndicator(.hidden)
+        .fixedSize()
+        .accessibilityLabel("More")
+        .confirmationDialog("Block @\(user.screenName)?", isPresented: $confirmingBlock) {
+            Button("Block", role: .destructive) { model.setBlocked(true, user) }
+        } message: {
+            Text("They won't be able to follow you or see your posts, and you won't see their posts or notifications.")
+        }
+    }
+}
+
 // MARK: - Explore / Search
 
 struct ExploreView: View {
@@ -340,9 +471,7 @@ struct SearchResultsView: View {
         FeedView(feed: FeedModel { [latest] client, cursor in try await client.search(query, latest: latest, cursor: cursor) },
                  emptyTitle: "No results for “\(query)”", emptySymbol: "magnifyingglass")
             .id("\(query)-\(latest)")
-            .safeAreaBar(edge: .top) {
-                FeedTabs(selection: $latest, options: [(false, "Top"), (true, "Latest")])
-            }
+            .transition(.opacity)
             .navigationTitle(query)
     }
 }
@@ -357,9 +486,7 @@ struct NotificationsView: View {
     var body: some View {
         FeedView(feed: feed, emptyTitle: tab == .mentions ? "No mentions yet" : "No notifications yet", emptySymbol: "bell")
             .id(tab)
-            .safeAreaBar(edge: .top) {
-                FeedTabs(selection: $tab, options: [(.all, "All"), (.priority, "Priority"), (.mentions, "Mentions")])
-            }
+            .transition(.opacity)
             .navigationTitle("Notifications")
     }
 

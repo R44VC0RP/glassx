@@ -1,0 +1,54 @@
+{
+  "fill-specializations" : [
+    {
+      "value" : {
+        "linear-gradient" : [
+          "display-p3:0.04706,0.06275,0.12549,1.00000",
+          "display-p3:0.00000,0.00000,0.00000,1.00000"
+        ]
+      }
+    },
+    {
+      "appearance" : "dark",
+      "value" : {
+        "linear-gradient" : [
+          "display-p3:0.03922,0.05098,0.10196,1.00000",
+          "display-p3:0.00000,0.00000,0.00000,1.00000"
+        ]
+      }
+    }
+  ],
+  "groups" : [
+    {
+      "layers" : [
+        {
+          "glass" : false,
+          "hidden" : false,
+          "image-name" : "halo.svg",
+          "name" : "halo",
+          "position" : { "scale" : 1, "translation-in-points" : [ 0, 0 ] }
+        }
+      ],
+      "shadow" : { "kind" : "none", "opacity" : 0 },
+      "translucency" : { "enabled" : false, "value" : 0 }
+    },
+    {
+      "layers" : [
+        {
+          "glass" : true,
+          "hidden" : false,
+          "image-name" : "x.svg",
+          "name" : "x",
+          "fill-specializations" : [
+            { "value" : { "solid" : "srgb:1.00000,1.00000,1.00000,1.00000" } }
+          ],
+          "position" : { "scale" : 1.15, "translation-in-points" : [ 0, 0 ] }
+        }
+      ],
+      "shadow" : { "kind" : "neutral", "opacity" : 0.5 },
+      "specular" : "inside",
+      "translucency" : { "enabled" : true, "value" : 0.35 }
+    }
+  ],
+  "supported-platforms" : { "squares" : "shared" }
+}

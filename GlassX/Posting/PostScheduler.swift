@@ -18,15 +18,28 @@ final class PostScheduler {
             var category: String
         }
 
+        struct StoredPart: Codable, Hashable {
+            var text: String
+            var media: [StoredMedia] = []
+        }
+
         var id = UUID()
         var text: String
         var replyToID: String?
         var replyToHandle: String?
         var media: [StoredMedia] = []
+        /// Thread parts after the first (nil for single posts and older queue files).
+        var extraParts: [StoredPart]? = nil
+        var quoteURL: String? = nil
+        /// For threads interrupted mid-send: the last part that went out and its post ID.
+        var sentThroughIndex: Int? = nil
+        var lastSentID: String? = nil
         var sendAt: Date
         var createdAt = Date.now
         var attempts = 0
         var lastError: String?
+
+        var partCount: Int { 1 + (extraParts?.count ?? 0) }
     }
 
     struct Settings {
@@ -94,23 +107,43 @@ final class PostScheduler {
     // MARK: Queue
 
     @discardableResult
-    func enqueue(text: String, replyTo: XTweet?, attachments: [PostAttachment]) throws -> QueuedPost {
+    func enqueue(_ draft: PostDraft) throws -> QueuedPost {
         let id = UUID()
         let folder = Self.directory.appending(path: id.uuidString, directoryHint: .isDirectory)
         try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
-        var media: [QueuedPost.StoredMedia] = []
-        for (index, attachment) in attachments.enumerated() {
-            let name = "\(index).\(attachment.fileExtension)"
-            try attachment.data.write(to: folder.appending(path: name))
-            media.append(.init(fileName: name, mimeType: attachment.mimeType, category: attachment.category.rawValue))
+        var stored: [QueuedPost.StoredPart] = []
+        for (partIndex, part) in draft.parts.enumerated() {
+            var media: [QueuedPost.StoredMedia] = []
+            for (index, attachment) in part.attachments.enumerated() {
+                let name = "\(partIndex)-\(index).\(attachment.fileExtension)"
+                try attachment.data.write(to: folder.appending(path: name))
+                media.append(.init(fileName: name, mimeType: attachment.mimeType, category: attachment.category.rawValue))
+            }
+            stored.append(.init(text: part.text, media: media))
         }
-        let post = QueuedPost(id: id, text: text, replyToID: replyTo?.id, replyToHandle: replyTo?.author.screenName,
-                              media: media, sendAt: nextSlot())
+        let first = stored.first ?? .init(text: "")
+        let post = QueuedPost(id: id, text: first.text, replyToID: draft.replyTo?.id, replyToHandle: draft.replyTo?.author.screenName,
+                              media: first.media, extraParts: stored.count > 1 ? Array(stored.dropFirst()) : nil,
+                              quoteURL: draft.quote?.url.absoluteString, sendAt: nextSlot())
         queue.append(post)
         queue.sort { $0.sendAt < $1.sendAt }
         save()
-        log.notice("Queued post for \(post.sendAt.formatted(date: .omitted, time: .shortened), privacy: .public) (\(self.queue.count) waiting)")
+        log.notice("Queued \(post.partCount)-part post for \(post.sendAt.formatted(date: .omitted, time: .shortened), privacy: .public) (\(self.queue.count) waiting)")
         return post
+    }
+
+    /// Rebuilds a sendable draft from a queued post's stored text and media files.
+    private func draft(for post: QueuedPost) throws -> PostDraft {
+        let folder = Self.directory.appending(path: post.id.uuidString)
+        func attachments(_ media: [QueuedPost.StoredMedia]) throws -> [PostAttachment] {
+            try media.map { item in
+                PostAttachment(data: try Data(contentsOf: folder.appending(path: item.fileName)), mimeType: item.mimeType,
+                               category: XClient.MediaCategory(rawValue: item.category) ?? .image, preview: nil)
+            }
+        }
+        var parts = [PostDraft.Part(text: post.text, attachments: try attachments(post.media))]
+        for part in post.extraParts ?? [] { parts.append(.init(text: part.text, attachments: try attachments(part.media))) }
+        return PostDraft(parts: parts, replyToID: post.replyToID, quoteURL: post.quoteURL.flatMap(URL.init(string:)))
     }
 
     func remove(_ post: QueuedPost) {
@@ -180,13 +213,13 @@ final class PostScheduler {
         sendingID = post.id
         defer { sendingID = nil }
         do {
-            var mediaIDs: [String] = []
-            for item in post.media {
-                let data = try Data(contentsOf: Self.directory.appending(path: post.id.uuidString).appending(path: item.fileName))
-                mediaIDs.append(try await client.uploadMedia(data, mimeType: item.mimeType,
-                                                             category: XClient.MediaCategory(rawValue: item.category) ?? .image))
+            let resume = post.sentThroughIndex.flatMap { index in post.lastSentID.map { (index: index, id: $0) } }
+            try await AppModel.send(try draft(for: post), with: client, resumeAfter: resume) { [weak self] index, id in
+                guard let self, let position = self.queue.firstIndex(where: { $0.id == post.id }) else { return }
+                self.queue[position].sentThroughIndex = index
+                self.queue[position].lastSentID = id
+                self.save()
             }
-            try await client.post(text: post.text, replyTo: post.replyToID, mediaIDs: mediaIDs)
             recordSent()
             remove(post)
             respaceOverdue()

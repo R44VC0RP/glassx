@@ -26,6 +26,11 @@ enum TimelineParser {
                 entries += instruction["entries"] as? [JSON] ?? []
             case "TimelinePinEntry", "TimelineReplaceEntry":
                 if let entry = instruction["entry"] as? JSON { entries.append(entry) }
+            case "TimelineAddToModule":
+                // Later pages of a module (e.g. the profile media grid) arrive as module items.
+                let moduleItems = (instruction["moduleItems"] as? [JSON] ?? []).compactMap { $0["item"] as? JSON }
+                entries.append(["entryId": instruction["moduleEntryId"] as? String ?? "module",
+                                "content": ["entryType": "TimelineTimelineModule", "items": moduleItems.map { ["item": $0] }]])
             default:
                 break
             }
@@ -322,7 +327,13 @@ enum TimelineParser {
             || (legacy["verified"] as? Bool ?? false)
         user.verifiedType = (legacy["verified_type"] as? String) ?? ((result["verification"] as? JSON)?["verified_type"] as? String)
         user.isProtected = ((result["privacy"] as? JSON)?["protected"] as? Bool) ?? (legacy["protected"] as? Bool ?? false)
-        user.isFollowing = ((result["relationship_perspectives"] as? JSON)?["following"] as? Bool) ?? (legacy["following"] as? Bool ?? false)
+        let relationship = result["relationship_perspectives"] as? JSON
+        user.isFollowing = (relationship?["following"] as? Bool) ?? (legacy["following"] as? Bool ?? false)
+        user.followsYou = (relationship?["followed_by"] as? Bool) ?? (legacy["followed_by"] as? Bool ?? false)
+        user.isMuting = (relationship?["muting"] as? Bool) ?? (legacy["muting"] as? Bool ?? false)
+        user.isBlocking = (relationship?["blocking"] as? Bool) ?? (legacy["blocking"] as? Bool ?? false)
+        user.pinnedTweetID = ((result["pinned_items"] as? JSON)?["tweet_ids_str"] as? [String])?.first
+            ?? (legacy["pinned_tweet_ids_str"] as? [String])?.first
         user.joined = (((core["created_at"] as? String) ?? (legacy["created_at"] as? String))).flatMap(parseDate)
         return user
     }

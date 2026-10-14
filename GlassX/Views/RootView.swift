@@ -113,6 +113,12 @@ struct MainView: View {
             }
         }
         .animation(.smooth, value: model.banner)
+        .confirmationDialog("Delete post?", isPresented: Binding(get: { model.confirmDelete != nil }, set: { if !$0 { model.confirmDelete = nil } }),
+                            presenting: model.confirmDelete) { tweet in
+            Button("Delete", role: .destructive) { model.delete(tweet) }
+        } message: { _ in
+            Text("This can't be undone, and it will be removed from your profile, the timelines of anyone following you, and search results.")
+        }
         .overlay {
             if let target = model.compose {
                 ComposerOverlay(target: target).id(target.id)
@@ -181,20 +187,39 @@ private struct SectionSegment: View {
     var namespace: Namespace.ID
     var action: () -> Void
     @AppStorage("homeShowsFollowing") private var following = false
+    @AppStorage("notificationsTab") private var notificationsTab = "all"
+    @AppStorage("searchLatest") private var searchLatest = false
     @State private var hovering = false
 
-    /// While Home is active its segment doubles as the For You / Following switch.
-    private var isHomeMenu: Bool { section == .home && isSelected }
+    /// While a section is active, its segment doubles as that section's view switch
+    /// (For You / Following, All / Priority / Mentions, Top / Latest).
+    private var isHomeMenu: Bool { isSelected && [.home, .notifications, .search].contains(section) }
 
     var body: some View {
         Group {
             if isHomeMenu {
                 Menu {
-                    Picker("Timeline", selection: $following.animation(.smooth)) {
-                        Label("For You", systemImage: "sparkles").tag(false)
-                        Label("Following", systemImage: "person.2").tag(true)
+                    switch section {
+                    case .home:
+                        Picker("Timeline", selection: $following.animation(.smooth)) {
+                            Label("For You", systemImage: "sparkles").tag(false)
+                            Label("Following", systemImage: "person.2").tag(true)
+                        }
+                        .pickerStyle(.inline)
+                    case .notifications:
+                        Picker("Notifications", selection: $notificationsTab.animation(.smooth)) {
+                            Label("All", systemImage: "bell").tag("all")
+                            Label("Priority", systemImage: "star").tag("priority")
+                            Label("Mentions", systemImage: "at").tag("mentions")
+                        }
+                        .pickerStyle(.inline)
+                    default:
+                        Picker("Search results", selection: $searchLatest.animation(.smooth)) {
+                            Label("Top", systemImage: "flame").tag(false)
+                            Label("Latest", systemImage: "clock").tag(true)
+                        }
+                        .pickerStyle(.inline)
                     }
-                    .pickerStyle(.inline)
                 } label: {
                     label
                 }
@@ -207,14 +232,31 @@ private struct SectionSegment: View {
         .buttonStyle(.plain)
         .onHover { hovering = $0 }
         .animation(.easeOut(duration: 0.15), value: hovering)
-        .help(isHomeMenu ? "Switch between For You and Following" : section.title)
+        .help(isHomeMenu ? menuHelp : section.title)
         .accessibilityLabel(isHomeMenu ? "Home, \(title)" : section.title)
         .accessibilityAddTraits(isSelected ? [.isSelected, .isButton] : .isButton)
     }
 
     private var title: String {
         guard isHomeMenu else { return section.title }
-        return following ? "Following" : "For You"
+        switch section {
+        case .home: return following ? "Following" : "For You"
+        case .notifications:
+            switch notificationsTab {
+            case "priority": return "Priority"
+            case "mentions": return "Mentions"
+            default: return "Notifications"
+            }
+        default: return searchLatest ? "Explore · Latest" : "Explore · Top"
+        }
+    }
+
+    private var menuHelp: String {
+        switch section {
+        case .home: "Switch between For You and Following"
+        case .notifications: "Show all notifications, priority ones, or mentions"
+        default: "Sort search results by Top or Latest"
+        }
     }
 
     private var label: some View {

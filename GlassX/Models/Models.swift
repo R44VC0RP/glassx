@@ -18,6 +18,10 @@ struct XUser: Identifiable, Hashable, Codable, Sendable {
     var verifiedType: String?
     var isProtected: Bool = false
     var isFollowing: Bool = false
+    var followsYou: Bool = false
+    var isMuting: Bool = false
+    var isBlocking: Bool = false
+    var pinnedTweetID: String?
     var joined: Date?
 
     /// The avatar variant to fetch for a given display size in points.
