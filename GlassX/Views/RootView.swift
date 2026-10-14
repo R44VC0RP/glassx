@@ -13,6 +13,27 @@ struct RootView: View {
         }
         .tint(.xBlue)
         .preferredColorScheme(.dark)
+        .onReceive(NotificationCenter.default.publisher(for: NSApplication.didResignActiveNotification)) { _ in
+            model.appDidResignActive()
+        }
+        .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
+            model.appDidBecomeActive()
+        }
+        #if DEBUG
+        .onAppear {
+            // `--window-width N`: screenshot narrow layouts.
+            let args = CommandLine.arguments
+            if let i = args.firstIndex(of: "--window-width"), let width = args[safe: i + 1].flatMap(Double.init) {
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                    for window in NSApp.windows where window.isVisible && window.canBecomeMain {
+                        var frame = window.frame
+                        frame.size.width = width
+                        window.setFrame(frame, display: true)
+                    }
+                }
+            }
+        }
+        #endif
         .containerBackground(Color.black, for: .window)
         .environment(\.openURL, OpenURLAction { url in
             guard url.scheme == "glassx" else { return .systemAction }
@@ -30,6 +51,9 @@ struct RootView: View {
 
 struct MainView: View {
     @Environment(AppModel.self) private var model
+    /// Window width; below this the switcher drops its titles so the toolbar never overflows.
+    @State private var windowWidth: CGFloat = 1200
+    private var compactNavigation: Bool { windowWidth < 960 }
 
     var body: some View {
         @Bindable var model = model
@@ -40,11 +64,12 @@ struct MainView: View {
         .id(model.section)
         .background(Color.black)
         .toolbar {
-            ToolbarItem(placement: .principal) { SectionSwitcher() }
+            ToolbarItem(placement: .principal) { SectionSwitcher(showTitles: !compactNavigation) }
                 .sharedBackgroundVisibility(.hidden)
             sharedToolbar
         }
         .toolbar(removing: .title)
+        .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { windowWidth = $0 }
         .toolbarBackgroundVisibility(.hidden, for: .windowToolbar)
         .overlay(alignment: .top) {
             if let banner = model.banner {
@@ -89,16 +114,15 @@ struct MainView: View {
 }
 
 /// Top-level navigation: one Liquid Glass capsule with icon + title segments and a sliding selection.
-/// Collapses to icons only when the window is narrow.
+/// Shows icons only when the window is narrow.
 private struct SectionSwitcher: View {
+    var showTitles: Bool
     @Environment(AppModel.self) private var model
     @Namespace private var selection
 
     var body: some View {
-        ViewThatFits(in: .horizontal) {
-            segments(showTitles: true)
-            segments(showTitles: false)
-        }
+        segments(showTitles: showTitles)
+            .animation(.smooth(duration: 0.3), value: showTitles)
     }
 
     private func segments(showTitles: Bool) -> some View {

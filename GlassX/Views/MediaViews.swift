@@ -57,11 +57,7 @@ struct MediaGrid: View {
         } label: {
             Color.clear
                 .overlay {
-                    AsyncImage(url: item.previewURL) { image in
-                        image.resizable().scaledToFill()
-                    } placeholder: {
-                        Rectangle().fill(Color.xPlaceholder)
-                    }
+                    RemoteImage(url: item.previewURL, maxPixel: ImageSize.media)
                 }
                 .clipped()
                 .overlay { if item.kind != .photo { VideoBadge(media: item) } }
@@ -114,7 +110,7 @@ struct LinkCardView: View {
                     Color.clear
                         .aspectRatio(1.91, contentMode: .fit)
                         .overlay {
-                            AsyncImage(url: image) { $0.resizable().scaledToFill() } placeholder: { Rectangle().fill(Color.xPlaceholder) }
+                            RemoteImage(url: image, maxPixel: ImageSize.media)
                         }
                         .clipped()
                 }
@@ -145,7 +141,7 @@ struct MediaViewer: View {
             if let item = current {
                 Group {
                     if item.kind == .photo {
-                        AsyncImage(url: item.fullSizeURL) { $0.resizable().scaledToFit() } placeholder: { ProgressView().tint(.white) }
+                        RemoteImage(url: item.fullSizeURL, maxPixel: ImageSize.full, contentMode: .fit)
                     } else if let player {
                         VideoPlayer(player: player)
                     }

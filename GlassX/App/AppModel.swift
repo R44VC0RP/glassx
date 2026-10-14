@@ -72,9 +72,9 @@ final class AppModel {
     private(set) var engagement: [String: EngagementState] = [:]
     private(set) var client: XClient?
 
-    let forYouFeed = FeedModel { client, cursor in try await client.homeTimeline(following: false, cursor: cursor) }
-    let followingFeed = FeedModel { client, cursor in try await client.homeTimeline(following: true, cursor: cursor) }
-    let notificationsFeed = FeedModel { client, cursor in try await client.notifications(type: "All", cursor: cursor) }
+    let forYouFeed = FeedModel(autoRefresh: true) { client, cursor in try await client.homeTimeline(following: false, cursor: cursor) }
+    let followingFeed = FeedModel(autoRefresh: true) { client, cursor in try await client.homeTimeline(following: true, cursor: cursor) }
+    let notificationsFeed = FeedModel(autoRefresh: true) { client, cursor in try await client.notifications(type: "All", cursor: cursor) }
     let priorityNotificationsFeed = FeedModel { client, cursor in try await client.notifications(type: "Priority", cursor: cursor) }
     let mentionsFeed = FeedModel { client, cursor in try await client.notifications(type: "Mentions", cursor: cursor) }
     let bookmarksFeed = FeedModel { client, cursor in try await client.bookmarks(cursor: cursor) }
@@ -90,6 +90,24 @@ final class AppModel {
         let args = CommandLine.arguments
         if let i = args.firstIndex(of: "--section"), let raw = args[safe: i + 1], let section = Section(rawValue: raw) {
             self.section = section
+        }
+        if let i = args.firstIndex(of: "--search"), let query = args[safe: i + 1] {
+            section = .search
+            paths[.search] = [.search(query)]
+        }
+        if args.contains("--compose") { compose = ComposeTarget() }
+        // `--simulate-away N`: pretend the user left 10s after launch and came back N seconds later.
+        if let i = args.firstIndex(of: "--simulate-away"), let seconds = args[safe: i + 1].flatMap(Double.init) {
+            freshFeedAfter = min(freshFeedAfter, seconds)
+            Task { @MainActor in
+                try? await Task.sleep(for: .seconds(10))
+                self.appDidResignActive()
+                try? await Task.sleep(for: .seconds(seconds))
+                self.appDidBecomeActive()
+            }
+        }
+        if let i = args.firstIndex(of: "--open-user"), let name = args[safe: i + 1] {
+            paths[section, default: []].append(.user(name))
         }
         if let i = args.firstIndex(of: "--open-tweet"), let id = args[safe: i + 1] {
             paths[section, default: []].append(.tweetID(id))
@@ -108,6 +126,25 @@ final class AppModel {
 
     func open(_ route: Route) {
         paths[section, default: []].append(route)
+    }
+
+    // MARK: Freshness
+
+    /// After this long away from the app, coming back reloads every feed from the top.
+    var freshFeedAfter: TimeInterval = 60
+    private var inactiveSince: Date?
+
+    func appDidResignActive() {
+        inactiveSince = .now
+    }
+
+    func appDidBecomeActive() {
+        guard let since = inactiveSince else { return }
+        inactiveSince = nil
+        let away = Date.now.timeIntervalSince(since)
+        guard phase == .signedIn, away >= freshFeedAfter else { return }
+        FeedModel.log.notice("Back after \(Int(away))s away: loading a fresh feed")
+        refreshToken = UUID()
     }
 
     // MARK: Session

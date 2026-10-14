@@ -14,7 +14,7 @@ struct TweetRow: View {
                 contextLabel("arrow.2.squarepath", "\(reposter.name) reposted")
                     .onTapGesture { model.open(.user(reposter.screenName)) }
             } else if let context = item.socialContext {
-                contextLabel("person.2.fill", context)
+                contextLabel(item.socialSymbol ?? "sparkles", context)
             }
 
             HStack(alignment: .top, spacing: 12) {

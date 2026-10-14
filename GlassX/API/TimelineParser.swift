@@ -84,8 +84,20 @@ enum TimelineParser {
                   let feedTweet = feedTweet(from: result)
             else { return nil }
             var item = feedTweet
-            if let social = (itemContent["socialContext"] as? JSON)?["text"] as? String, item.repostedBy == nil {
+            if let context = itemContent["socialContext"] as? JSON, let social = context["text"] as? String, item.repostedBy == nil {
                 item.socialContext = social
+                item.socialSymbol = switch (context["contextType"] as? String ?? "").lowercased() {
+                case "pin": "pin.fill"
+                case "like": "heart.fill"
+                case "follow", "following": "person.fill"
+                case "conversation", "reply": "bubble.left.fill"
+                case "community": "person.3.fill"
+                case "list": "list.bullet"
+                case "topic": "number"
+                case "location": "mappin"
+                case "megaphone", "spaces": "megaphone.fill"
+                default: social.lowercased().contains("pinned") ? "pin.fill" : "sparkles"
+                }
             }
             return .tweet(item)
         case "TimelineNotification":

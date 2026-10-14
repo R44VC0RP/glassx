@@ -12,7 +12,7 @@ struct GlassXApp: App {
         WindowGroup("GlassX", id: "main") {
             RootView()
                 .environment(model)
-                .frame(minWidth: 760, minHeight: 560)
+                .frame(minWidth: 520, minHeight: 480)
         }
         .defaultSize(width: 1180, height: 860)
         .commands {

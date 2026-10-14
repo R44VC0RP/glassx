@@ -58,6 +58,7 @@ struct TweetDetailView: View {
             .frame(maxWidth: 640)
             .frame(maxWidth: .infinity)
         }
+        .scrollIndicators(.never)
         .environment(\.showsReplyContext, false)
         .scrollEdgeEffectStyle(.soft, for: [.top, .bottom])
         .safeAreaBar(edge: .bottom) { replyBar(to: parts.focal ?? initial) }
@@ -169,6 +170,7 @@ struct ProfileView: View {
 
 struct ProfileHeader: View {
     var user: XUser
+    @Environment(AppModel.self) private var model
     @Environment(\.openURL) private var openURL
 
     var body: some View {
@@ -177,7 +179,7 @@ struct ProfileHeader: View {
                 .aspectRatio(3, contentMode: .fit)
                 .overlay {
                     if let banner = user.bannerURL {
-                        AsyncImage(url: banner) { $0.resizable().scaledToFill() } placeholder: { Rectangle().fill(Color.xPlaceholder) }
+                        RemoteImage(url: banner, maxPixel: ImageSize.banner)
                     } else {
                         LinearGradient(colors: [.xBlue.opacity(0.5), .purple.opacity(0.4)], startPoint: .topLeading, endPoint: .bottomTrailing)
                     }
@@ -193,16 +195,20 @@ struct ProfileHeader: View {
                         .offset(y: -56)
                         .padding(.bottom, -56)
                     Spacer()
-                    Button("Open on x.com", systemImage: "arrow.up.right") {
-                        openURL(URL(string: "https://x.com/\(user.screenName)")!)
-                    }
-                    .buttonStyle(.glass)
-                    if user.isFollowing {
-                        Text("Following")
-                            .font(.callout.weight(.semibold))
-                            .padding(.horizontal, 14)
-                            .padding(.vertical, 6)
-                            .glassEffect(.regular, in: .capsule)
+                    if model.viewer?.id == user.id {
+                        OutlineButton(title: "Edit profile") { openURL(URL(string: "https://x.com/settings/profile")!) }
+                    } else {
+                        OutlineButton(title: "Open on x.com", systemImage: "arrow.up.right") {
+                            openURL(URL(string: "https://x.com/\(user.screenName)")!)
+                        }
+                        if user.isFollowing {
+                            Text("Following")
+                                .font(.system(size: 14, weight: .bold))
+                                .foregroundStyle(.white)
+                                .padding(.horizontal, 16)
+                                .frame(height: 34)
+                                .overlay(Capsule().strokeBorder(Color(red: 83 / 255, green: 100 / 255, blue: 113 / 255), lineWidth: 1))
+                        }
                     }
                 }
                 .padding(.top, 10)
@@ -254,6 +260,32 @@ struct ProfileHeader: View {
             Text(label).foregroundStyle(Color.xGray)
         }
         .font(.system(size: 14))
+    }
+}
+
+/// X's outlined pill button (white text, gray hairline border).
+struct OutlineButton: View {
+    var title: String
+    var systemImage: String?
+    var action: () -> Void
+    @State private var hovering = false
+
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 6) {
+                Text(title)
+                if let systemImage { Image(systemName: systemImage).font(.system(size: 11, weight: .bold)) }
+            }
+            .font(.system(size: 14, weight: .bold))
+            .foregroundStyle(.white)
+            .padding(.horizontal, 16)
+            .frame(height: 34)
+            .background(Capsule().fill(.white.opacity(hovering ? 0.1 : 0)))
+            .overlay(Capsule().strokeBorder(Color(red: 83 / 255, green: 100 / 255, blue: 113 / 255), lineWidth: 1))
+            .contentShape(Capsule())
+        }
+        .buttonStyle(.plain)
+        .onHover { hovering = $0 }
     }
 }
 
@@ -357,7 +389,7 @@ struct NotificationRow: View {
                 Color.clear
                     .frame(width: 64, height: 64)
                     .overlay {
-                        AsyncImage(url: thumb.previewURL) { $0.resizable().scaledToFill() } placeholder: { Rectangle().fill(Color.xPlaceholder) }
+                        RemoteImage(url: thumb.previewURL, maxPixel: ImageSize.thumbnail)
                     }
                     .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
                     .overlay(RoundedRectangle(cornerRadius: 8, style: .continuous).strokeBorder(Color.xLine, lineWidth: 1))

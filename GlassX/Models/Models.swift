@@ -20,6 +20,12 @@ struct XUser: Identifiable, Hashable, Codable, Sendable {
     var isFollowing: Bool = false
     var joined: Date?
 
+    /// The avatar variant to fetch for a given display size in points.
+    func avatarURL(forSize size: Double) -> URL? {
+        if size > 56 { return largeAvatarURL }
+        return avatarURL.flatMap { URL(string: $0.absoluteString.replacingOccurrences(of: "_normal.", with: "_bigger.")) }
+    }
+
     /// A sharper avatar than the 48px `_normal` default.
     var largeAvatarURL: URL? {
         guard let avatarURL else { return nil }
@@ -85,6 +91,8 @@ struct FeedTweet: Identifiable, Hashable, Sendable {
     var tweet: XTweet
     var repostedBy: XUser?
     var socialContext: String?
+    /// SF Symbol for the context line ("Pinned", "X liked", "Followed by …").
+    var socialSymbol: String?
     /// Draws a thread line down to the next post (conversation modules and reply chains).
     var connectsBelow = false
     var connectsAbove = false

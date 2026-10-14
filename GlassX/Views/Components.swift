@@ -58,14 +58,10 @@ struct Avatar: View {
 
     var body: some View {
         let shape = RoundedRectangle(cornerRadius: user?.hasSquareAvatar == true ? size * 0.22 : size / 2, style: .continuous)
-        AsyncImage(url: size > 56 ? user?.largeAvatarURL : user?.avatarURL.flatMap { URL(string: $0.absoluteString.replacingOccurrences(of: "_normal.", with: "_bigger.")) }) { image in
-            image.resizable().scaledToFill()
-        } placeholder: {
-            Rectangle().fill(Color.xPlaceholder)
-        }
+        RemoteImage(url: user?.avatarURL(forSize: size), maxPixel: size > 56 ? ImageSize.largeAvatar : ImageSize.avatar)
         .frame(width: size, height: size)
         .clipShape(shape)
-        .overlay(shape.strokeBorder(Color.xLine, lineWidth: 1))
+        .overlay(shape.strokeBorder(.white.opacity(0.08), lineWidth: 0.5))
         .accessibilityHidden(true)
     }
 }
