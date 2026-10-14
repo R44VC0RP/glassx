@@ -13,6 +13,7 @@ struct RootView: View {
         }
         .tint(.xBlue)
         .preferredColorScheme(.dark)
+        .modifier(DebugAppearActive())
         .onReceive(NotificationCenter.default.publisher(for: NSApplication.didResignActiveNotification)) { _ in
             model.appDidResignActive()
         }
@@ -131,7 +132,7 @@ struct MainView: View {
     }
 
     @ToolbarContentBuilder private var sharedToolbar: some ToolbarContent {
-        if model.visibleQueueCount > 0 {
+        if !model.scheduler.queue.isEmpty {
             ToolbarItem(placement: .primaryAction) { QueueToolbarButton() }
             ToolbarSpacer(.fixed, placement: .primaryAction)
         }
@@ -271,5 +272,23 @@ private struct AccountMenu: View {
         .menuIndicator(.hidden)
         .help("Account")
         .accessibilityLabel("Account")
+    }
+}
+
+/// Debug-only `--appear-active`: render as the focused window (for recordings made while another
+/// app has focus).
+private struct DebugAppearActive: ViewModifier {
+    func body(content: Content) -> some View {
+        #if DEBUG
+        if CommandLine.arguments.contains("--appear-active") {
+            content
+                .environment(\.appearsActive, true)
+                .environment(\.controlActiveState, .key)
+        } else {
+            content
+        }
+        #else
+        content
+        #endif
     }
 }

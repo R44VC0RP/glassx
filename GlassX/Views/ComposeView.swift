@@ -3,9 +3,9 @@ import UniformTypeIdentifiers
 
 /// The composer: a chat-style prompt docked at the bottom of the window over a lightly dimmed feed.
 ///
-/// Posting lifts the words out of the box and collapses it into a status pill (progress, then a
-/// check). When "Space out my posts" queues the post instead, the pill becomes a ticket with a
-/// winding clock that arcs up into the toolbar's queue button.
+/// Sending never lets the words leave the card: the card itself closes around them (its rounded
+/// mask crops the text as it shrinks) and settles into a status pill. A queued post's pill then
+/// flies into the toolbar's queue button.
 struct ComposerOverlay: View {
     enum Stage: Equatable { case editing, sending, sent, queued(Date) }
 
@@ -25,18 +25,21 @@ struct ComposerOverlay: View {
     @State private var editorHeight: CGFloat = 26
     @FocusState private var focused: Bool
 
-    // Send choreography
-    @State private var textFrame: CGRect = .zero
-    @State private var flyingText: String?
-    @State private var flyAway = false
-    @State private var arrowLaunched = false
+    // Card morph
+    @State private var collapsed = false
+    @State private var dockVisible = true
+    @State private var pillVisible = false
+    @State private var dockHeight: CGFloat = 120
+    @State private var pillWidth: CGFloat = 160
     @State private var checkPulse = 0
-    @State private var ticketX: CGFloat = 0
-    @State private var ticketY: CGFloat = 0
-    @State private var ticketScale: CGFloat = 1
-    @State private var ticketOpacity: Double = 1
-    @State private var canvasSize: CGSize = .zero
-    @State private var toolbarInset: CGFloat = 52
+    // Exit
+    @State private var dropAway = false
+    @State private var flight: CGSize = .zero
+    @State private var flightScale: CGFloat = 1
+    @State private var flightOpacity: Double = 1
+    @State private var pillCenter: CGPoint = .zero
+    /// Queue exit: the pill folds into a clock circle before hopping to the toolbar.
+    @State private var orb = false
 
     private let limit = 280
     private var trimmed: String { text.trimmingCharacters(in: .whitespacesAndNewlines) }
@@ -51,17 +54,18 @@ struct ComposerOverlay: View {
             let width = min(660, geometry.size.width - 48)
             ZStack(alignment: .bottom) {
                 Color.black
-                    .opacity(shown && editing ? 0.3 : 0)
+                    .opacity(shown && !collapsed ? 0.3 : 0)
                     .ignoresSafeArea()
                     .onTapGesture { close() }
                     .allowsHitTesting(editing)
 
-                container(width: width)
+                card(width: width)
                     .padding(.bottom, 22)
-                    .scaleEffect(ticketScale)
-                    .offset(x: ticketX)
-                    .offset(y: ticketY)
-                    .opacity(ticketOpacity)
+                    .scaleEffect(flightScale)
+                    .offset(flight)
+                    .opacity(flightOpacity)
+                    .offset(y: dropAway ? 28 : 0)
+                    .opacity(dropAway ? 0 : 1)
                     .scaleEffect(shown ? 1 : (exiting ? 0.96 : 0.94), anchor: .bottom)
                     .offset(y: shown ? 0 : (exiting ? 26 : 40))
                     .blur(radius: shown ? 0 : 6)
@@ -77,25 +81,8 @@ struct ComposerOverlay: View {
                             SpringKeyframe(0, duration: 0.2)
                         }
                     }
-
-                if let flyingText {
-                    // The words lift out of the box and dissolve upward as it collapses.
-                    Text(flyingText)
-                        .font(.system(size: 17))
-                        .lineSpacing(3)
-                        .foregroundStyle(.white)
-                        .frame(width: textFrame.width, height: textFrame.height, alignment: .topLeading)
-                        .scaleEffect(flyAway ? 0.94 : 1, anchor: .topLeading)
-                        .blur(radius: flyAway ? 7 : 0)
-                        .opacity(flyAway ? 0 : 1)
-                        .position(x: textFrame.midX, y: textFrame.midY + (flyAway ? -110 : 0))
-                        .allowsHitTesting(false)
-                }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
-            .coordinateSpace(.named("composer"))
-            .onGeometryChange(for: CGSize.self) { $0.size } action: { canvasSize = $0 }
-            .onGeometryChange(for: CGFloat.self) { $0.safeAreaInsets.top } action: { toolbarInset = max($0, 40) }
         }
         .onAppear {
             #if DEBUG
@@ -120,30 +107,46 @@ struct ComposerOverlay: View {
         }
     }
 
-    // MARK: Container
+    // MARK: Card
 
-    /// The dock while editing; a compact status pill once sent or queued. One surface morphs between them.
-    private func container(width: CGFloat) -> some View {
-        ZStack {
-            if editing {
-                dock
-                    .transition(.opacity.combined(with: .scale(scale: 0.98, anchor: .bottom)))
-            } else {
-                statusPill
-                    .transition(.opacity.combined(with: .scale(scale: 0.85)))
-            }
+    /// One surface. Expanded it holds the dock; collapsed it shrinks to the pill's size and its
+    /// rounded mask crops whatever dock content is still fading out.
+    private func card(width: CGFloat) -> some View {
+        let shape = RoundedRectangle(cornerRadius: collapsed ? 25 : 28, style: .continuous)
+        let collapsedWidth = orb ? 50 : pillWidth
+        return ZStack(alignment: .topLeading) {
+            dock
+                .frame(width: width)
+                .fixedSize(horizontal: false, vertical: true)
+                .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { if !collapsed { dockHeight = $0 } }
+                .opacity(dockVisible ? 1 : 0)
+                .blur(radius: dockVisible ? 0 : 3)
+                .allowsHitTesting(editing)
+
+            statusPill
+                .fixedSize()
+                .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { pillWidth = $0 }
+                .frame(width: collapsed ? collapsedWidth : width, height: collapsed ? 50 : dockHeight)
+                .opacity(pillVisible ? 1 : 0)
+                .scaleEffect(pillVisible ? 1 : 0.9)
+                .allowsHitTesting(false)
         }
-        .frame(width: editing ? width : nil)
-        .composerSurface(RoundedRectangle(cornerRadius: editing ? 28 : 25, style: .continuous))
+        .frame(width: collapsed ? collapsedWidth : width, height: collapsed ? 50 : dockHeight, alignment: .topLeading)
+        .clipShape(shape)
+        .composerSurface(shape)
         .overlay {
             if isDropTargeted {
-                RoundedRectangle(cornerRadius: 28, style: .continuous)
-                    .strokeBorder(Color.xBlue.opacity(0.8), lineWidth: 1.5)
+                shape.strokeBorder(Color.xBlue.opacity(0.8), lineWidth: 1.5)
             }
         }
+        .onGeometryChange(for: CGPoint.self) { proxy in
+            let frame = proxy.frame(in: .global)
+            return CGPoint(x: frame.midX, y: frame.midY)
+        } action: { pillCenter = $0 }
         .animation(.smooth(duration: 0.22), value: editorHeight)
         .animation(.bouncy(duration: 0.35), value: attachments)
         .animation(.easeOut(duration: 0.15), value: isDropTargeted)
+        .animation(.smooth(duration: 0.35), value: pillWidth)
         .dropDestination(for: URL.self) { urls, _ in
             add(urls.compactMap { try? PostAttachment.load(from: $0) })
             return true
@@ -209,8 +212,6 @@ struct ComposerOverlay: View {
                     .font(.system(size: 15, weight: .bold))
                     .foregroundStyle(.white)
                     .contentTransition(.symbolEffect(.replace))
-                    .offset(y: arrowLaunched ? -16 : 0)
-                    .opacity(arrowLaunched ? 0 : 1)
             }
             .frame(width: 34, height: 34)
             .scaleEffect(canPost ? 1 : 0.92)
@@ -223,15 +224,9 @@ struct ComposerOverlay: View {
         .animation(.bouncy(duration: 0.35), value: canPost)
     }
 
-    @ViewBuilder private var statusPill: some View {
+    private var statusPill: some View {
         HStack(spacing: 10) {
             switch stage {
-            case .sending:
-                Avatar(user: model.viewer, size: 24)
-                ProgressRing(value: progress ?? -1, color: .xBlue).frame(width: 15, height: 15)
-                Text(progress.map { "Uploading \(Int($0 * 100))%" } ?? (target.replyTo == nil ? "Posting…" : "Replying…"))
-                    .monospacedDigit()
-                    .contentTransition(.numericText())
             case .sent:
                 ZStack {
                     Circle()
@@ -239,8 +234,8 @@ struct ComposerOverlay: View {
                         .keyframeAnimator(initialValue: PulseValue(), trigger: checkPulse) { content, value in
                             content.scaleEffect(value.scale).opacity(value.opacity)
                         } keyframes: { _ in
-                            KeyframeTrack(\.scale) { LinearKeyframe(2.4, duration: 0.6, timingCurve: .easeOut) }
-                            KeyframeTrack(\.opacity) { LinearKeyframe(0.7, duration: 0.01); LinearKeyframe(0, duration: 0.6, timingCurve: .easeOut) }
+                            KeyframeTrack(\.scale) { LinearKeyframe(2.2, duration: 0.55, timingCurve: .easeOut) }
+                            KeyframeTrack(\.opacity) { LinearKeyframe(0.6, duration: 0.01); LinearKeyframe(0, duration: 0.55, timingCurve: .easeOut) }
                         }
                     Image(systemName: "checkmark.circle.fill")
                         .font(.system(size: 18))
@@ -248,21 +243,28 @@ struct ComposerOverlay: View {
                         .symbolEffect(.bounce, value: checkPulse)
                 }
                 .frame(width: 20, height: 20)
+                .transition(.scale.combined(with: .opacity))
                 Text(target.replyTo == nil ? "Posted" : "Reply sent")
             case .queued(let date):
                 ClockGlyph().frame(width: 18, height: 18)
-                Text("Scheduled for \(date.formatted(date: Calendar.current.isDateInToday(date) ? .omitted : .abbreviated, time: .shortened))")
-            case .editing:
-                EmptyView()
+                    .transition(.scale.combined(with: .opacity))
+                if !orb { Text("Scheduled for \(date.formatted(date: Calendar.current.isDateInToday(date) ? .omitted : .abbreviated, time: .shortened))")
+                    .transition(.opacity.combined(with: .scale(scale: 0.9, anchor: .leading))) }
+            default:
+                ProgressRing(value: progress ?? -1, color: .xBlue).frame(width: 16, height: 16)
+                    .transition(.scale.combined(with: .opacity))
+                Text(progress.map { "Uploading \(Int($0 * 100))%" } ?? (willQueueLabel ? "Scheduling…" : (target.replyTo == nil ? "Posting…" : "Replying…")))
+                    .monospacedDigit()
             }
         }
         .font(.system(size: 14, weight: .semibold))
         .foregroundStyle(.white)
-        .padding(.leading, stage == .sending ? 13 : 16)
-        .padding(.trailing, 18)
+        .contentTransition(.interpolate)
+        .padding(.horizontal, orb ? 16 : 18)
         .frame(height: 50)
-        .fixedSize()
     }
+
+    @State private var willQueueLabel = false
 
     private func replyChip(_ reply: XTweet) -> some View {
         HStack(spacing: 8) {
@@ -310,7 +312,6 @@ struct ComposerOverlay: View {
                 .frame(height: editorHeight)
                 .onKeyPress(.escape) { close(); return .handled }
         }
-        .onGeometryChange(for: CGRect.self) { $0.frame(in: .named("composer")) } action: { textFrame = $0 }
     }
 
     private var attachmentStrip: some View {
@@ -367,6 +368,21 @@ struct ComposerOverlay: View {
         }
     }
 
+    /// Card → pill: the card closes around its content while the content fades, then the pill
+    /// label fades in once there's room for it.
+    private func collapse() {
+        withAnimation(.smooth(duration: 0.5)) { collapsed = true }
+        // Content stays visible while the card crops it, then hands off to the pill label.
+        withAnimation(.easeIn(duration: 0.32)) { dockVisible = false }
+        withAnimation(.smooth(duration: 0.28).delay(0.2)) { pillVisible = true }
+    }
+
+    private func expand() {
+        withAnimation(.smooth(duration: 0.45)) { collapsed = false }
+        withAnimation(.easeOut(duration: 0.15)) { pillVisible = false }
+        withAnimation(.smooth(duration: 0.3).delay(0.2)) { dockVisible = true }
+    }
+
     private func post() {
         guard canPost else {
             if editing, trimmed.isEmpty, attachments.isEmpty { shakes += 1 }
@@ -377,63 +393,60 @@ struct ComposerOverlay: View {
         let files = attachments
         let hasMedia = !files.isEmpty
         inlineError = nil
-        if queues { model.holdQueueBadge = true }
-
-        // 1. The arrow launches and the words lift off.
-        flyingText = body.isEmpty ? nil : body
-        flyAway = false
-        withAnimation(.snappy(duration: 0.18)) { arrowLaunched = true }
-        withAnimation(.easeIn(duration: 0.45)) { flyAway = true }
-        // 2. The dock collapses into a status pill (straight to the ticket when queueing).
-        if !queues {
-            withAnimation(.bouncy(duration: 0.5, extraBounce: 0.04)) { stage = .sending }
-        }
+        willQueueLabel = queues
+        stage = .sending
+        collapse()
 
         Task {
+            let started = Date.now
             let outcome = await model.post(text: body, replyTo: target.replyTo, attachments: files, announce: false) { value in
                 Task { @MainActor in
                     if hasMedia { withAnimation(.smooth) { progress = value } }
                 }
             }
-            flyingText = nil
+            // Let the collapse finish before the result swaps in.
+            let elapsed = Date.now.timeIntervalSince(started)
+            if elapsed < 0.6 { try? await Task.sleep(for: .seconds(0.6 - elapsed)) }
+
             switch outcome {
             case .sent:
-                withAnimation(.bouncy(duration: 0.45, extraBounce: 0.1)) { stage = .sent }
+                withAnimation(.bouncy(duration: 0.4, extraBounce: 0.08)) { stage = .sent }
                 checkPulse += 1
-                try? await Task.sleep(for: .seconds(1.15))
-                close()
+                try? await Task.sleep(for: .seconds(1.1))
+                withAnimation(.smooth(duration: 0.35)) { dropAway = true }
+                try? await Task.sleep(for: .seconds(0.36))
+                model.compose = nil
             case .queued(let date):
-                withAnimation(.bouncy(duration: 0.5, extraBounce: 0.06)) { stage = .queued(date) }
-                try? await Task.sleep(for: .seconds(1.2))
-                flyIntoQueue()
-                try? await Task.sleep(for: .seconds(0.5))
-                model.holdQueueBadge = false   // the toolbar count bumps as the ticket lands
-                try? await Task.sleep(for: .seconds(0.1))
+                withAnimation(.bouncy(duration: 0.4, extraBounce: 0.06)) { stage = .queued(date) }
+                try? await Task.sleep(for: .seconds(1.15))
+                await flyIntoQueue()
                 model.compose = nil
             case .failed:
                 model.holdQueueBadge = false
-                withAnimation(.bouncy(duration: 0.45)) {
-                    stage = .editing
-                    arrowLaunched = false
-                    flyAway = false
-                }
+                stage = .editing
                 progress = nil
+                expand()
                 fail(model.banner ?? "Couldn't post")
                 model.banner = nil
             }
         }
     }
 
-    /// Arcs the ticket up into the toolbar's queue button: it rises fast and drifts right late.
-    private func flyIntoQueue() {
-        // Pill center sits 22pt + half its height above the bottom; the queue button is left of
-        // Refresh / New Post / account in the toolbar, vertically centered in the toolbar inset.
-        let targetX = (canvasSize.width - 212) - canvasSize.width / 2
-        let targetY = -toolbarInset / 2 - (canvasSize.height - 22 - 25)
-        withAnimation(.timingCurve(0.45, 0, 0.9, 0.6, duration: 0.55)) { ticketX = targetX }
-        withAnimation(.timingCurve(0.1, 0.55, 0.3, 1, duration: 0.55)) { ticketY = targetY }
-        withAnimation(.easeIn(duration: 0.55)) { ticketScale = 0.3 }
-        withAnimation(.easeIn(duration: 0.2).delay(0.38)) { ticketOpacity = 0 }
+    /// The pill folds into a clock circle, then hops into the toolbar queue button on a short arc.
+    private func flyIntoQueue() async {
+        withAnimation(.smooth(duration: 0.32)) { orb = true }
+        try? await Task.sleep(for: .seconds(0.34))
+        let target = model.queueButtonFrame
+        let destination = target == .zero ? CGPoint(x: pillCenter.x + 400, y: 26) : CGPoint(x: target.minX + 14, y: target.midY)
+        let dx = destination.x - pillCenter.x
+        let dy = destination.y - pillCenter.y
+        withAnimation(.timingCurve(0.55, 0, 0.75, 0.45, duration: 0.5)) { flight.width = dx }
+        withAnimation(.timingCurve(0.2, 0.7, 0.35, 1, duration: 0.5)) { flight.height = dy }
+        withAnimation(.timingCurve(0.4, 0, 0.8, 0.6, duration: 0.5)) { flightScale = 0.4 }
+        withAnimation(.easeIn(duration: 0.14).delay(0.38)) { flightOpacity = 0 }
+        try? await Task.sleep(for: .seconds(0.46))
+        model.holdQueueBadge = false   // the button's count bumps as the clock lands
+        try? await Task.sleep(for: .seconds(0.12))
     }
 
     private func runDemo(_ demo: String) {
@@ -441,9 +454,9 @@ struct ComposerOverlay: View {
             try? await Task.sleep(for: .seconds(0.7))
             for character in demo {
                 text.append(character)
-                try? await Task.sleep(for: .milliseconds(Int.random(in: 26...58)))
+                try? await Task.sleep(for: .milliseconds(Int.random(in: 30...65)))
             }
-            try? await Task.sleep(for: .seconds(0.8))
+            try? await Task.sleep(for: .seconds(0.9))
             post()
         }
     }

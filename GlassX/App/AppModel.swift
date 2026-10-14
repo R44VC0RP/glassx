@@ -75,6 +75,8 @@ final class AppModel {
     let scheduler = PostScheduler()
     /// While a queued post's ticket is flying to the toolbar, its count isn't shown yet.
     var holdQueueBadge = false
+    /// Where the toolbar queue button is, in window coordinates (the queue animation's target).
+    var queueButtonFrame: CGRect = .zero
     var visibleQueueCount: Int { max(0, scheduler.queue.count - (holdQueueBadge ? 1 : 0)) }
     var refreshToken = UUID()
     private(set) var engagement: [String: EngagementState] = [:]
@@ -346,6 +348,7 @@ final class AppModel {
         guard let client else { return .failed }
         if scheduler.wouldQueue(isReply: replyTo != nil) {
             do {
+                if !announce { holdQueueBadge = true }
                 let queued = try scheduler.enqueue(text: text, replyTo: replyTo, attachments: attachments)
                 if announce { showNotice("Scheduled for \(queued.sendAt.formatted(date: Calendar.current.isDateInToday(queued.sendAt) ? .omitted : .abbreviated, time: .shortened))",
                            symbol: "clock.fill") }
@@ -365,7 +368,6 @@ final class AppModel {
             }
             try await client.post(text: text, replyTo: replyTo?.id, mediaIDs: mediaIDs)
             scheduler.recordSent()
-            refreshToken = UUID()
             return .sent
         } catch {
             report(error)

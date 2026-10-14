@@ -121,11 +121,15 @@ struct QueueToolbarButton: View {
         } label: {
             HStack(spacing: 5) {
                 Image(systemName: "clock").symbolEffect(.bounce, value: count)
-                Text("\(count) queued")
-                    .monospacedDigit()
-                    .contentTransition(.numericText(value: Double(count)))
+                if count > 0 {
+                    Text("\(count) queued")
+                        .monospacedDigit()
+                        .contentTransition(.numericText(value: Double(count)))
+                        .transition(.opacity.combined(with: .scale(scale: 0.8, anchor: .leading)))
+                }
             }
         }
+        .onGeometryChange(for: CGRect.self) { $0.frame(in: .global) } action: { model.queueButtonFrame = $0 }
         .keyframeAnimator(initialValue: CGFloat(1), trigger: count) { content, scale in
             content.scaleEffect(scale)
         } keyframes: { _ in
@@ -134,7 +138,7 @@ struct QueueToolbarButton: View {
                 SpringKeyframe(1, duration: 0.45, spring: .bouncy)
             }
         }
-        .animation(.snappy, value: count)
+        .animation(.bouncy(duration: 0.35), value: count)
         .help("Queued posts")
         .popover(isPresented: $showing, arrowEdge: .bottom) {
             VStack(alignment: .leading, spacing: 12) {
