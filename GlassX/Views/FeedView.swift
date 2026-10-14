@@ -17,6 +17,12 @@ final class FeedModel {
     var error: String?
     /// Posts added above the reader while they were scrolled down; drives the "new posts" pill.
     var unseen: [FeedItem] = []
+    /// Keyboard selection (J/K), shown with a blue accent bar.
+    var selectedID: FeedItem.ID?
+    /// Top visible post, restored when you come back to this tab.
+    var anchorID: FeedItem.ID?
+    /// Posts currently on screen, top to bottom.
+    var visibleIDs: [FeedItem.ID] = []
     /// Bumped after every full reload so the view can jump back to the top.
     private(set) var reloadGeneration = 0
     /// Whether this feed checks for newer posts in the background.
@@ -79,6 +85,8 @@ final class FeedModel {
             }
             #endif
             Self.prefetchImages(for: loaded)
+            selectedID = nil
+            anchorID = nil
             withAnimation(.smooth) {
                 items = loaded
                 unseen = []
@@ -175,6 +183,7 @@ struct FeedView<Header: View>: View {
     @Environment(\.scenePhase) private var scenePhase
     @State private var position = ScrollPosition(idType: FeedItem.ID.self)
     @State private var isAtTop = true
+    @FocusState private var focused: Bool
 
     private var pollInterval: Duration {
         #if DEBUG
@@ -188,11 +197,19 @@ struct FeedView<Header: View>: View {
             LazyVStack(spacing: 0) {
                 header
                 ForEach(feed.items) { item in
-                    FeedItemView(item: item)
-                        .onAppear {
-                            if item.id == feed.prefetchThresholdID { Task { await feed.loadMore(model) } }
-                        }
-                    if !item.connectsBelow { Hairline() }
+                    VStack(spacing: 0) {
+                        FeedItemView(item: item)
+                            .overlay(alignment: .leading) {
+                                if feed.selectedID == item.id {
+                                    Capsule().fill(Color.xBlue).frame(width: 3).padding(.vertical, 10)
+                                        .transition(.opacity)
+                                }
+                            }
+                        if !item.connectsBelow { Hairline() }
+                    }
+                    .onAppear {
+                        if item.id == feed.prefetchThresholdID { Task { await feed.loadMore(model) } }
+                    }
                 }
                 footer
             }
@@ -208,8 +225,16 @@ struct FeedView<Header: View>: View {
             isAtTop = atTop
             if atTop, !feed.unseen.isEmpty { withAnimation(.smooth) { feed.unseen = [] } }
         }
+        .onScrollTargetVisibilityChange(idType: FeedItem.ID.self, threshold: 0.2) { ids in
+            feed.visibleIDs = ids
+            if let first = ids.first { feed.anchorID = first }
+        }
         .scrollIndicators(.never)
         .scrollEdgeEffectStyle(.soft, for: .top)
+        .focusable()
+        .focusEffectDisabled()
+        .focused($focused)
+        .onKeyPress(phases: .down) { press in handleKey(press) }
         .modifier(DebugAutoScroll(feed: feed, position: $position))
         .overlay(alignment: .top) {
             if !feed.unseen.isEmpty, !isAtTop {
@@ -237,7 +262,14 @@ struct FeedView<Header: View>: View {
                 ProgressView().controlSize(.large)
             }
         }
-        .onAppear { feed.loadIfNeeded(model) }
+        .onAppear {
+            feed.loadIfNeeded(model)
+            focused = true
+            // Come back to the post you were reading when switching tabs.
+            if let anchor = feed.anchorID, feed.items.contains(where: { $0.id == anchor }) {
+                DispatchQueue.main.async { position.scrollTo(id: anchor, anchor: .top) }
+            }
+        }
         .onChange(of: model.refreshToken) { feed.loadIfNeeded(model) }
         .onChange(of: feed.reloadGeneration) { position.scrollTo(edge: .top) }
         .task(id: scenePhase) { await pollForNewer() }
@@ -273,6 +305,66 @@ struct FeedView<Header: View>: View {
                 feed.items.insert(contentsOf: fresh, at: 0)
             }
         }
+    }
+
+    // MARK: Keyboard
+
+    private func handleKey(_ press: KeyPress) -> KeyPress.Result {
+        guard press.modifiers.isDisjoint(with: [.command, .control, .option]) else { return .ignored }
+        switch press.key {
+        case KeyEquivalent("j"): moveSelection(by: 1)
+        case KeyEquivalent("k"): moveSelection(by: -1)
+        case KeyEquivalent("."):
+            scrollToTop()
+        case .return, KeyEquivalent("o"):
+            guard let item = selectedItem else { return .ignored }
+            switch item {
+            case .tweet(let tweet): model.open(.tweet(tweet.tweet))
+            case .notification(let notification):
+                if let tweet = notification.tweet { model.open(.tweet(tweet)) }
+                else if let id = notification.tweetID { model.open(.tweetID(id)) }
+            }
+        default:
+            guard let tweet = selectedTweet else { return .ignored }
+            switch press.characters.lowercased() {
+            case "l": model.toggleLike(tweet)
+            case "r": model.compose = ComposeTarget(replyTo: tweet)
+            case "t": model.toggleRepost(tweet)
+            case "b": model.toggleBookmark(tweet)
+            case "u": model.open(.user(tweet.author.screenName))
+            default: return .ignored
+            }
+        }
+        return .handled
+    }
+
+    private var selectedItem: FeedItem? {
+        guard let id = feed.selectedID else { return nil }
+        return feed.items.first { $0.id == id }
+    }
+
+    private var selectedTweet: XTweet? {
+        switch selectedItem {
+        case .tweet(let tweet): tweet.tweet
+        case .notification(let notification): notification.tweet
+        case nil: nil
+        }
+    }
+
+    /// J/K: step through posts. Starts from the top visible post if the selection is off screen.
+    private func moveSelection(by step: Int) {
+        let ids = feed.items.map(\.id)
+        guard !ids.isEmpty else { return }
+        let next: Int
+        if let current = feed.selectedID, feed.visibleIDs.contains(current), let index = ids.firstIndex(of: current) {
+            next = min(max(index + step, 0), ids.count - 1)
+        } else {
+            let firstVisible = feed.visibleIDs.first.flatMap { ids.firstIndex(of: $0) } ?? 0
+            next = step > 0 ? firstVisible : max(firstVisible - 1, 0)
+        }
+        withAnimation(.snappy(duration: 0.2)) { feed.selectedID = ids[next] }
+        withAnimation(.smooth(duration: 0.25)) { position.scrollTo(id: ids[next], anchor: UnitPoint(x: 0.5, y: 0.08)) }
+        if next >= ids.count - 6 { Task { await feed.loadMore(model) } }
     }
 
     private func scrollToTop() {

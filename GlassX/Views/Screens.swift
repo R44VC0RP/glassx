@@ -24,6 +24,7 @@ struct TweetDetailView: View {
     @State private var reply = ""
     @State private var isPosting = false
     @FocusState private var replyFocused: Bool
+    @FocusState private var threadFocused: Bool
 
     init(tweetID: String, initial: XTweet? = nil) {
         self.tweetID = tweetID
@@ -61,6 +62,23 @@ struct TweetDetailView: View {
         .scrollIndicators(.never)
         .environment(\.showsReplyContext, false)
         .scrollEdgeEffectStyle(.soft, for: [.top, .bottom])
+        .focusable()
+        .focusEffectDisabled()
+        .focused($threadFocused)
+        .onKeyPress(phases: .down) { press in
+            guard press.modifiers.isDisjoint(with: [.command, .control, .option]),
+                  let tweet = parts.focal ?? initial else { return .ignored }
+            switch press.characters.lowercased() {
+            case "l": model.toggleLike(tweet)
+            case "r": replyFocused = true
+            case "t": model.toggleRepost(tweet)
+            case "b": model.toggleBookmark(tweet)
+            case "u": model.open(.user(tweet.author.screenName))
+            default: return .ignored
+            }
+            return .handled
+        }
+        .onAppear { threadFocused = true }
         .safeAreaBar(edge: .bottom) { replyBar(to: parts.focal ?? initial) }
         .navigationTitle("Post")
         .onAppear { feed.loadIfNeeded(model) }

@@ -23,6 +23,26 @@ struct RootView: View {
         .onAppear {
             // `--window-width N`: screenshot narrow layouts.
             let args = CommandLine.arguments
+            // `--simulate-keys "jjjo⎋"`: deliver real key events to the window (⎋ = Escape, | = 1.5s pause).
+            if let i = args.firstIndex(of: "--simulate-keys"), let keys = args[safe: i + 1] {
+                Task { @MainActor in
+                    try? await Task.sleep(for: .seconds(6))
+                    for character in keys {
+                        if character == "|" { try? await Task.sleep(for: .seconds(1.5)); continue }
+                        guard let window = NSApp.windows.first(where: { $0.isVisible && $0.canBecomeMain }) else { return }
+                        let isEscape = character == "⎋"
+                        let text = isEscape ? "\u{1b}" : String(character)
+                        for type in [NSEvent.EventType.keyDown, .keyUp] {
+                            if let event = NSEvent.keyEvent(with: type, location: .zero, modifierFlags: [], timestamp: ProcessInfo.processInfo.systemUptime,
+                                                            windowNumber: window.windowNumber, context: nil, characters: text,
+                                                            charactersIgnoringModifiers: text, isARepeat: false, keyCode: isEscape ? 53 : 0) {
+                                window.sendEvent(event)
+                            }
+                        }
+                        try? await Task.sleep(for: .milliseconds(700))
+                    }
+                }
+            }
             let width = args.firstIndex(of: "--window-width").flatMap { args[safe: $0 + 1] }.flatMap(Double.init)
             let height = args.firstIndex(of: "--window-height").flatMap { args[safe: $0 + 1] }.flatMap(Double.init)
             if width != nil || height != nil {
@@ -73,6 +93,11 @@ struct MainView: View {
             sharedToolbar
         }
         .toolbar(removing: .title)
+        .onKeyPress(.escape) {
+            guard !(model.paths[model.section] ?? []).isEmpty else { return .ignored }
+            model.paths[model.section]?.removeLast()
+            return .handled
+        }
         .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { windowWidth = $0 }
         .toolbarBackgroundVisibility(.hidden, for: .windowToolbar)
         .overlay(alignment: .top) {

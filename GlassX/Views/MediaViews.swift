@@ -60,7 +60,11 @@ struct MediaGrid: View {
                     RemoteImage(url: item.previewURL, maxPixel: ImageSize.media)
                 }
                 .clipped()
-                .overlay { if item.kind != .photo { VideoBadge(media: item) } }
+                .overlay {
+                    if item.kind != .photo {
+                        if item.videoURL != nil { InlineVideo(media: item) } else { VideoBadge(media: item) }
+                    }
+                }
                 .contentShape(Rectangle())
         }
         .buttonStyle(.plain)

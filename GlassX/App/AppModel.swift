@@ -106,6 +106,16 @@ final class AppModel {
                 self.appDidBecomeActive()
             }
         }
+        // `--bounce-section S`: after 9s switch to section S, then back after 3s.
+        if let i = args.firstIndex(of: "--bounce-section"), let raw = args[safe: i + 1], let other = Section(rawValue: raw) {
+            let original = section
+            Task { @MainActor in
+                try? await Task.sleep(for: .seconds(9))
+                self.section = other
+                try? await Task.sleep(for: .seconds(3))
+                self.section = original
+            }
+        }
         if let i = args.firstIndex(of: "--open-user"), let name = args[safe: i + 1] {
             paths[section, default: []].append(.user(name))
         }

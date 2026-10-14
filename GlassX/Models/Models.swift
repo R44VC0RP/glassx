@@ -39,6 +39,8 @@ struct XMedia: Identifiable, Hashable, Codable, Sendable {
     var kind: Kind
     var previewURL: URL
     var videoURL: URL?
+    /// A lighter variant (≤ ~2 Mbps) for muted inline autoplay.
+    var inlineVideoURL: URL?
     var width: Double
     var height: Double
     var altText: String?
