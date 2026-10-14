@@ -119,6 +119,12 @@ final class PostScheduler {
         save()
     }
 
+    func clearAll() {
+        for post in queue { try? FileManager.default.removeItem(at: Self.directory.appending(path: post.id.uuidString)) }
+        queue = []
+        save()
+    }
+
     func sendNow(_ post: QueuedPost) {
         guard let index = queue.firstIndex(where: { $0.id == post.id }) else { return }
         queue[index].sendAt = .now

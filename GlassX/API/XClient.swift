@@ -408,6 +408,7 @@ actor XClient {
     @discardableResult
     func post(text: String, replyTo: String?, mediaIDs: [String] = []) async throws -> XTweet? {
         if Self.dryRun {
+            try? await Task.sleep(for: .seconds(1.1))   // feels like a real round trip
             log.notice("DRY RUN post \"\(text, privacy: .public)\" media=\(mediaIDs.count) reply=\(replyTo ?? "-", privacy: .public)")
             return nil
         }

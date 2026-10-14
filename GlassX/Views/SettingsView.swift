@@ -115,13 +115,26 @@ struct QueueToolbarButton: View {
     @State private var showing = false
 
     var body: some View {
+        let count = model.visibleQueueCount
         Button {
             showing.toggle()
         } label: {
-            Label("\(model.scheduler.queue.count) queued", systemImage: "clock")
-                .labelStyle(.titleAndIcon)
-                .monospacedDigit()
+            HStack(spacing: 5) {
+                Image(systemName: "clock").symbolEffect(.bounce, value: count)
+                Text("\(count) queued")
+                    .monospacedDigit()
+                    .contentTransition(.numericText(value: Double(count)))
+            }
         }
+        .keyframeAnimator(initialValue: CGFloat(1), trigger: count) { content, scale in
+            content.scaleEffect(scale)
+        } keyframes: { _ in
+            KeyframeTrack {
+                SpringKeyframe(1.22, duration: 0.14, spring: .snappy)
+                SpringKeyframe(1, duration: 0.45, spring: .bouncy)
+            }
+        }
+        .animation(.snappy, value: count)
         .help("Queued posts")
         .popover(isPresented: $showing, arrowEdge: .bottom) {
             VStack(alignment: .leading, spacing: 12) {

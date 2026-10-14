@@ -39,7 +39,7 @@ struct RootView: View {
                                 window.sendEvent(event)
                             }
                         }
-                        try? await Task.sleep(for: .milliseconds(700))
+                        try? await Task.sleep(for: .milliseconds(keys.count > 12 ? 30 : 700))
                     }
                 }
             }
@@ -112,8 +112,10 @@ struct MainView: View {
             }
         }
         .animation(.smooth, value: model.banner)
-        .sheet(item: $model.compose) { target in
-            ComposeView(target: target)
+        .overlay {
+            if let target = model.compose {
+                ComposerOverlay(target: target).id(target.id)
+            }
         }
     }
 
@@ -129,7 +131,7 @@ struct MainView: View {
     }
 
     @ToolbarContentBuilder private var sharedToolbar: some ToolbarContent {
-        if !model.scheduler.queue.isEmpty {
+        if model.visibleQueueCount > 0 {
             ToolbarItem(placement: .primaryAction) { QueueToolbarButton() }
             ToolbarSpacer(.fixed, placement: .primaryAction)
         }

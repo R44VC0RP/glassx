@@ -56,6 +56,8 @@ struct EngagementState: Hashable {
 struct ComposeTarget: Identifiable {
     let id = UUID()
     var replyTo: XTweet?
+    /// Debug demo: types this text in and posts it.
+    var demoText: String? = nil
 }
 
 @MainActor @Observable
@@ -71,6 +73,9 @@ final class AppModel {
     /// Symbol for `banner`; warning by default, set by `showNotice` for good news.
     var bannerSymbol = "exclamationmark.triangle.fill"
     let scheduler = PostScheduler()
+    /// While a queued post's ticket is flying to the toolbar, its count isn't shown yet.
+    var holdQueueBadge = false
+    var visibleQueueCount: Int { max(0, scheduler.queue.count - (holdQueueBadge ? 1 : 0)) }
     var refreshToken = UUID()
     private(set) var engagement: [String: EngagementState] = [:]
     private(set) var client: XClient?
@@ -137,6 +142,25 @@ final class AppModel {
                 } catch {
                     FeedModel.log.error("TEST UPLOAD FAILED \(error.localizedDescription, privacy: .public)")
                 }
+            }
+        }
+        if args.contains("--clear-queue") { scheduler.clearAll() }
+        // `--demo-composer`: dry run that writes and sends one post, then writes one that queues.
+        if args.contains("--demo-composer") {
+            XClient.dryRun = true
+            let defaults = UserDefaults.standard
+            defaults.set(true, forKey: "pacing.enabled")
+            defaults.set(60, forKey: "pacing.gapMinutes")
+            defaults.set(0, forKey: "pacing.startHour")
+            defaults.set(0, forKey: "pacing.endHour")
+            defaults.set(0.0, forKey: "pacing.lastSentAt")
+            scheduler.clearAll()
+            Task { @MainActor in
+                try? await Task.sleep(for: .seconds(4))
+                self.compose = ComposeTarget(demoText: "the new composer just shipped and it feels so good ✨")
+                while self.compose != nil { try? await Task.sleep(for: .milliseconds(100)) }
+                try? await Task.sleep(for: .seconds(1.4))
+                self.compose = ComposeTarget(demoText: "this one waits its turn ⏳")
             }
         }
         if args.contains("--reset-pacing") {
@@ -317,14 +341,14 @@ final class AppModel {
     enum PostOutcome { case sent, queued(Date), failed }
 
     /// Sends now, or queues it when "Space out my posts" says it's too soon.
-    func post(text: String, replyTo: XTweet?, attachments: [PostAttachment] = [],
+    func post(text: String, replyTo: XTweet?, attachments: [PostAttachment] = [], announce: Bool = true,
               progress: (@Sendable (Double) -> Void)? = nil) async -> PostOutcome {
         guard let client else { return .failed }
         if scheduler.wouldQueue(isReply: replyTo != nil) {
             do {
                 let queued = try scheduler.enqueue(text: text, replyTo: replyTo, attachments: attachments)
-                showNotice("Scheduled for \(queued.sendAt.formatted(date: Calendar.current.isDateInToday(queued.sendAt) ? .omitted : .abbreviated, time: .shortened))",
-                           symbol: "clock.fill")
+                if announce { showNotice("Scheduled for \(queued.sendAt.formatted(date: Calendar.current.isDateInToday(queued.sendAt) ? .omitted : .abbreviated, time: .shortened))",
+                           symbol: "clock.fill") }
                 return .queued(queued.sendAt)
             } catch {
                 report(error)
