@@ -9,10 +9,8 @@ struct HomeView: View {
     var body: some View {
         FeedView(feed: following ? model.followingFeed : model.forYouFeed, emptyTitle: "Your timeline is empty", emptySymbol: "house")
             .id(following)
-            .safeAreaBar(edge: .top) {
-                FeedTabs(selection: $following, options: [(false, "For You"), (true, "Following")])
-            }
-            .navigationTitle("Home")
+            .transition(.opacity)
+            .navigationTitle(following ? "Following" : "For You")
     }
 }
 

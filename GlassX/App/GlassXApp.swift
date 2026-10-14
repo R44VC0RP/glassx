@@ -28,6 +28,13 @@ struct GlassXApp: App {
                         .disabled(model.phase != .signedIn)
                 }
                 Divider()
+                Button("For You") { UserDefaults.standard.set(false, forKey: "homeShowsFollowing"); model.section = .home }
+                    .keyboardShortcut("1", modifiers: [.command, .option])
+                    .disabled(model.phase != .signedIn)
+                Button("Following") { UserDefaults.standard.set(true, forKey: "homeShowsFollowing"); model.section = .home }
+                    .keyboardShortcut("2", modifiers: [.command, .option])
+                    .disabled(model.phase != .signedIn)
+                Divider()
                 Button("Back") {
                     if !(model.paths[model.section] ?? []).isEmpty { model.paths[model.section]?.removeLast() }
                 }

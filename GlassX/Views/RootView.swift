@@ -120,40 +120,74 @@ private struct SectionSegment: View {
     var showTitle: Bool
     var namespace: Namespace.ID
     var action: () -> Void
+    @AppStorage("homeShowsFollowing") private var following = false
     @State private var hovering = false
 
+    /// While Home is active its segment doubles as the For You / Following switch.
+    private var isHomeMenu: Bool { section == .home && isSelected }
+
     var body: some View {
-        Button(action: action) {
-            HStack(spacing: 7) {
-                Image(systemName: isSelected ? section.selectedSymbol : section.symbol)
-                    .font(.system(size: 14, weight: isSelected ? .semibold : .regular))
-                    .contentTransition(.symbolEffect(.replace))
-                    .frame(width: 18)
-                if showTitle {
-                    Text(section.title)
-                        .font(.system(size: 13, weight: isSelected ? .semibold : .medium))
-                        .fixedSize()
+        Group {
+            if isHomeMenu {
+                Menu {
+                    Picker("Timeline", selection: $following.animation(.smooth)) {
+                        Label("For You", systemImage: "sparkles").tag(false)
+                        Label("Following", systemImage: "person.2").tag(true)
+                    }
+                    .pickerStyle(.inline)
+                } label: {
+                    label
                 }
+                .menuStyle(.button)
+                .menuIndicator(.hidden)
+            } else {
+                Button(action: action) { label }
             }
-            .foregroundStyle(isSelected ? Color.white : (hovering ? Color.white.opacity(0.9) : Color.xGray))
-            .padding(.horizontal, showTitle ? 14 : 12)
-            .frame(height: 30)
-            .background {
-                if isSelected {
-                    Capsule().fill(.white.opacity(0.14))
-                        .matchedGeometryEffect(id: "selection", in: namespace)
-                } else if hovering {
-                    Capsule().fill(.white.opacity(0.06))
-                }
-            }
-            .contentShape(Capsule())
         }
         .buttonStyle(.plain)
         .onHover { hovering = $0 }
         .animation(.easeOut(duration: 0.15), value: hovering)
-        .help(section.title)
-        .accessibilityLabel(section.title)
+        .help(isHomeMenu ? "Switch between For You and Following" : section.title)
+        .accessibilityLabel(isHomeMenu ? "Home, \(title)" : section.title)
         .accessibilityAddTraits(isSelected ? [.isSelected, .isButton] : .isButton)
+    }
+
+    private var title: String {
+        guard isHomeMenu else { return section.title }
+        return following ? "Following" : "For You"
+    }
+
+    private var label: some View {
+        HStack(spacing: 7) {
+            Image(systemName: isSelected ? section.selectedSymbol : section.symbol)
+                .font(.system(size: 14, weight: isSelected ? .semibold : .regular))
+                .contentTransition(.symbolEffect(.replace))
+                .frame(width: 18)
+            if showTitle {
+                Text(title)
+                    .font(.system(size: 13, weight: isSelected ? .semibold : .medium))
+                    .contentTransition(.interpolate)
+                    .fixedSize()
+            }
+            if isHomeMenu {
+                Image(systemName: "chevron.down")
+                    .font(.system(size: 9, weight: .bold))
+                    .opacity(0.7)
+            }
+        }
+        .foregroundStyle(isSelected ? Color.white : (hovering ? Color.white.opacity(0.9) : Color.xGray))
+        .padding(.horizontal, showTitle ? 14 : 12)
+        .frame(height: 30)
+        .background {
+            if isSelected {
+                Capsule().fill(.white.opacity(hovering && isHomeMenu ? 0.18 : 0.14))
+                    .matchedGeometryEffect(id: "selection", in: namespace)
+            } else if hovering {
+                Capsule().fill(.white.opacity(0.06))
+            }
+        }
+        .contentShape(Capsule())
+        .animation(.smooth(duration: 0.25), value: following)
     }
 }
 
